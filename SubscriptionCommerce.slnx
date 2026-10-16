@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Common/">
+    <Project Path="src/Common/SubscriptionCommerce.Common.Application/SubscriptionCommerce.Common.Application.csproj" />
+    <Project Path="src/Common/SubscriptionCommerce.Common.Domain/SubscriptionCommerce.Common.Domain.csproj" />
+    <Project Path="src/Common/SubscriptionCommerce.Common.Infrastructure/SubscriptionCommerce.Common.Infrastructure.csproj" />
+    <Project Path="src/Common/SubscriptionCommerce.Common.Presentation/SubscriptionCommerce.Common.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/src/Common/test/">
+    <Project Path="src/Common/SubscriptionCommerce.Common.UnitTests/SubscriptionCommerce.Common.UnitTests.csproj" />
+  </Folder>
+</Solution>

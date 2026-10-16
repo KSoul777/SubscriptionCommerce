@@ -1,0 +1,61 @@
+erDiagram
+    Tenants ||--o{ Customers : "has"
+    Tenants ||--o{ CustomFieldDefinitions : "defines"
+    CustomFieldDefinitions ||--o{ CustomFieldOptions : "offers (dropdown only)"
+    Customers ||--o{ CustomerFieldValues : "has"
+    CustomFieldDefinitions ||--o{ CustomerFieldValues : "is filled in by"
+    CustomerFieldValues ||--o{ CustomerFieldValueOptions : "selects"
+    CustomFieldOptions ||--o{ CustomerFieldValueOptions : "is selected in"
+    CustomerFieldValues ||--|{ CustomerFieldValueHistory : "records transitions"
+
+    Tenants {
+        int Id PK "identity; stands in for the ERP table"
+        nvarchar(200) Name
+        datetime2 CreatedAtUtc
+    }
+    Customers {
+        int Id PK "identity; stands in for the ERP table"
+        int TenantId FK
+        nvarchar(300) Name
+        datetime2 CreatedAtUtc
+    }
+    CustomFieldDefinitions {
+        int Id PK
+        int TenantId FK "unique with Name"
+        nvarchar(200) Name "unique per tenant, case-insensitive"
+        nvarchar(20) Type "Text or Dropdown; never changes"
+        bit AllowMultipleSelection "dropdown only"
+        bit IsRequired
+        int SortOrder
+        bit IsActive "soft delete"
+        datetime2 CreatedAtUtc
+        nvarchar(200) CreatedBy
+    }
+    CustomFieldOptions {
+        int Id PK
+        int FieldDefinitionId FK "unique with Label"
+        nvarchar(200) Label "unique per field, case-insensitive"
+        int SortOrder
+        bit IsActive "soft delete; old selections stay valid"
+    }
+    CustomerFieldValues {
+        int Id PK
+        int CustomerId FK "unique with FieldDefinitionId"
+        int FieldDefinitionId FK "one value row per customer and field"
+        nvarchar(2000) TextValue "text fields only; null for dropdowns"
+        datetime2 UpdatedAtUtc
+        nvarchar(200) UpdatedBy
+        rowversion RowVersion "optimistic concurrency token"
+    }
+    CustomerFieldValueOptions {
+        int CustomerFieldValueId PK, FK "cascade: replaced as the value changes"
+        int OptionId PK, FK
+    }
+    CustomerFieldValueHistory {
+        bigint Id PK "identity; gives the order of transitions"
+        int CustomerFieldValueId FK
+        nvarchar(max) OldValue "JSON snapshot; null for the first value"
+        nvarchar(max) NewValue "JSON snapshot with option ids and labels"
+        datetime2 ChangedAtUtc "UTC, saved with the value"
+        nvarchar(200) ChangedBy
+    }

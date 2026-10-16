@@ -1,0 +1,132 @@
+classDiagram
+    direction TB
+
+    namespace Presentation {
+        class CalculateOrderDiscounts {
+            <<endpoint>>
+            POST /orders/discounts
+        }
+    }
+
+    namespace Application {
+        class CalculateOrderDiscountsQuery {
+            <<record>>
+            +int CustomerId
+            +decimal Price
+            +string Currency
+            +IReadOnlyCollection~string~ CouponCodes
+        }
+        class CalculateOrderDiscountsQueryHandler {
+            +Handle(query, ct) Result~DiscountBreakdownResponse~
+        }
+        class Order {
+            <<record>>
+            +int CustomerId
+            +Money Price
+            +IReadOnlyCollection~string~ CouponCodes
+        }
+        class IDiscountProvider {
+            <<interface>>
+            +int Priority
+            +GetEligibleDiscountsAsync(Order, ct) Result~IReadOnlyList~Discount~~
+        }
+        class PriceListDiscountProvider {
+            Priority = 100
+            Source = PriceList
+        }
+        class PromotionDiscountProvider {
+            Priority = 200
+            Source = Promotion
+        }
+        class CouponDiscountProvider {
+            Priority = 300
+            Source = Coupon
+        }
+        class IPriceListReader {
+            <<interface>>
+            +GetForCustomerAsync(customerId, ct)
+        }
+        class IPromotionReader {
+            <<interface>>
+            +GetPromotionsAsync(ct)
+        }
+        class ICouponReader {
+            <<interface>>
+            +GetByCodesAsync(codes, ct)
+        }
+    }
+
+    namespace Domain {
+        class Discount {
+            +string Name
+            +string Source
+            +DiscountType Type
+            +decimal Value
+            +Currency? Currency
+            +string Rule
+            +Create(name, source, type, value, currency)$ Result~Discount~
+            ~CalculateDeduction(Money runningPrice) Result~Money~
+        }
+        class DiscountType {
+            <<enumeration>>
+            Percentage
+            FixedAmount
+        }
+        class DiscountBreakdown {
+            +Money OriginalPrice
+            +IReadOnlyList~DiscountLine~ Lines
+            +Money TotalDiscount
+            +Money FinalPrice
+            +Apply(Money price, IEnumerable~Discount~ inPriorityOrder)$ Result~DiscountBreakdown~
+        }
+        class DiscountLine {
+            <<record>>
+            +string Name
+            +string Source
+            +DiscountType Type
+            +string Rule
+            +Money PriceBefore
+            +Money Deducted
+            +Money PriceAfter
+        }
+    }
+
+    namespace Infrastructure {
+        class PriceListReader {
+            EF Core, AsNoTracking
+        }
+        class PromotionReader {
+            EF Core, AsNoTracking
+        }
+        class CouponReader {
+            EF Core, AsNoTracking
+        }
+        class PricingDbContext {
+            schema pricing
+        }
+    }
+
+    CalculateOrderDiscounts ..> CalculateOrderDiscountsQuery : sends
+    CalculateOrderDiscountsQueryHandler ..> CalculateOrderDiscountsQuery : handles
+    CalculateOrderDiscountsQueryHandler ..> Order : builds
+    CalculateOrderDiscountsQueryHandler --> "*" IDiscountProvider : calls one by one, lowest Priority first
+    CalculateOrderDiscountsQueryHandler ..> DiscountBreakdown : Apply
+
+    PriceListDiscountProvider ..|> IDiscountProvider
+    PromotionDiscountProvider ..|> IDiscountProvider
+    CouponDiscountProvider ..|> IDiscountProvider
+
+    PriceListDiscountProvider --> IPriceListReader
+    PromotionDiscountProvider --> IPromotionReader
+    CouponDiscountProvider --> ICouponReader
+
+    IDiscountProvider ..> Discount : returns
+    Discount --> DiscountType
+    DiscountBreakdown *-- "*" DiscountLine
+
+    PriceListReader ..|> IPriceListReader
+    PromotionReader ..|> IPromotionReader
+    CouponReader ..|> ICouponReader
+    PriceListReader --> PricingDbContext
+    PromotionReader --> PricingDbContext
+    CouponReader --> PricingDbContext

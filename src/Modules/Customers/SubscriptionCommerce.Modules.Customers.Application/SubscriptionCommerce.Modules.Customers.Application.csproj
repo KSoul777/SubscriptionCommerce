@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\SubscriptionCommerce.Common.Application\SubscriptionCommerce.Common.Application.csproj" />
+    <ProjectReference Include="..\SubscriptionCommerce.Modules.Customers.Domain\SubscriptionCommerce.Modules.Customers.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SubscriptionCommerce.Modules.Customers.UnitTests" />
+  </ItemGroup>
+
+</Project>

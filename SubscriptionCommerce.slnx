@@ -15,6 +15,15 @@
     <Project Path="src/Common/SubscriptionCommerce.Common.UnitTests/SubscriptionCommerce.Common.UnitTests.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Customers/">
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.Application/SubscriptionCommerce.Modules.Customers.Application.csproj" />
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.Domain/SubscriptionCommerce.Modules.Customers.Domain.csproj" />
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.Infrastructure/SubscriptionCommerce.Modules.Customers.Infrastructure.csproj" />
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.Presentation/SubscriptionCommerce.Modules.Customers.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Customers/test/">
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.UnitTests/SubscriptionCommerce.Modules.Customers.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Pricing/">
     <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Application/SubscriptionCommerce.Modules.Pricing.Application.csproj" />
     <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Domain/SubscriptionCommerce.Modules.Pricing.Domain.csproj" />

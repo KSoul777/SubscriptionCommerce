@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\SubscriptionCommerce.Common.Presentation\SubscriptionCommerce.Common.Presentation.csproj" />
+    <ProjectReference Include="..\SubscriptionCommerce.Modules.Pricing.Application\SubscriptionCommerce.Modules.Pricing.Application.csproj" />
+  </ItemGroup>
+
+</Project>

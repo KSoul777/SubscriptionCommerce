@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\SubscriptionCommerce.Common.Domain\SubscriptionCommerce.Common.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -14,4 +14,14 @@
   <Folder Name="/src/Common/test/">
     <Project Path="src/Common/SubscriptionCommerce.Common.UnitTests/SubscriptionCommerce.Common.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Pricing/">
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Application/SubscriptionCommerce.Modules.Pricing.Application.csproj" />
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Domain/SubscriptionCommerce.Modules.Pricing.Domain.csproj" />
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Infrastructure/SubscriptionCommerce.Modules.Pricing.Infrastructure.csproj" />
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Presentation/SubscriptionCommerce.Modules.Pricing.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Pricing/test/">
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.UnitTests/SubscriptionCommerce.Modules.Pricing.UnitTests.csproj" />
+  </Folder>
 </Solution>

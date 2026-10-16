@@ -1,0 +1,55 @@
+services:
+  subscriptioncommerce.api:
+    image: ${DOCKER_REGISTRY-}subscriptioncommerceapi
+    container_name: SubscriptionCommerce.Api
+    build:
+      context: .
+      dockerfile: src/API/SubscriptionCommerce.Api/Dockerfile
+    ports:
+      - 5000:8080
+    depends_on:
+      subscriptioncommerce.database:
+        condition: service_healthy
+
+  subscriptioncommerce.database:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: SubscriptionCommerce.Database
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Local_dev_Passw0rd! # local container only
+    volumes:
+      # A named volume, not a bind mount: SQL Server data files on a Windows bind mount fail under WSL2.
+      - subscriptioncommerce-database:/var/opt/mssql
+    ports:
+      - 1433:1433
+    # The API applies migrations on start, so it waits until SQL Server accepts connections.
+    # Current images ship sqlcmd in mssql-tools18, images from before mid-2024 in mssql-tools.
+    healthcheck:
+      test: >-
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" -b -o /dev/null
+        || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" -b -o /dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  subscriptioncommerce.seq:
+    image: datalust/seq:2025.2
+    container_name: SubscriptionCommerce.Seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true # local dev only
+    ports:
+      - 5341:5341
+      - 8081:80
+
+  subscriptioncommerce.jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: SubscriptionCommerce.Jaeger
+    ports:
+      - 4317:4317
+      - 4318:4318
+      - 16686:16686
+
+volumes:
+  subscriptioncommerce-database:

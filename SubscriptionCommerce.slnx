@@ -3,8 +3,14 @@
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path=".dockerignore" />
+    <File Path="docker-compose.yml" />
+    <File Path="docker-compose.override.yml" />
   </Folder>
   <Folder Name="/src/" />
+  <Folder Name="/src/API/">
+    <Project Path="src/API/SubscriptionCommerce.Api/SubscriptionCommerce.Api.csproj" />
+  </Folder>
   <Folder Name="/src/Common/">
     <Project Path="src/Common/SubscriptionCommerce.Common.Application/SubscriptionCommerce.Common.Application.csproj" />
     <Project Path="src/Common/SubscriptionCommerce.Common.Domain/SubscriptionCommerce.Common.Domain.csproj" />
@@ -33,4 +39,7 @@
   <Folder Name="/src/Modules/Pricing/test/">
     <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.UnitTests/SubscriptionCommerce.Modules.Pricing.UnitTests.csproj" />
   </Folder>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
 </Solution>

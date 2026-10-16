@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Docker Compose": {
+      "commandName": "DockerCompose",
+      "commandVersion": "1.0",
+      "serviceActions": {
+        "subscriptioncommerce.api": "StartDebugging",
+        "subscriptioncommerce.database": "StartWithoutDebugging",
+        "subscriptioncommerce.seq": "StartWithoutDebugging",
+        "subscriptioncommerce.jaeger": "StartWithoutDebugging"
+      }
+    }
+  }
+}

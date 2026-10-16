@@ -28,6 +28,7 @@
     <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.Presentation/SubscriptionCommerce.Modules.Customers.Presentation.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Customers/test/">
+    <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.IntegrationTests/SubscriptionCommerce.Modules.Customers.IntegrationTests.csproj" />
     <Project Path="src/Modules/Customers/SubscriptionCommerce.Modules.Customers.UnitTests/SubscriptionCommerce.Modules.Customers.UnitTests.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Pricing/">
@@ -37,7 +38,11 @@
     <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.Presentation/SubscriptionCommerce.Modules.Pricing.Presentation.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Pricing/test/">
+    <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.IntegrationTests/SubscriptionCommerce.Modules.Pricing.IntegrationTests.csproj" />
     <Project Path="src/Modules/Pricing/SubscriptionCommerce.Modules.Pricing.UnitTests/SubscriptionCommerce.Modules.Pricing.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/SubscriptionCommerce.ArchitectureTests/SubscriptionCommerce.ArchitectureTests.csproj" />
   </Folder>
   <Project Path="docker-compose.dcproj">
     <Build />

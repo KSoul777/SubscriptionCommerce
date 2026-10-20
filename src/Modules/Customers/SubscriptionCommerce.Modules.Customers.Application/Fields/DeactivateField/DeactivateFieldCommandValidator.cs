@@ -6,6 +6,7 @@ internal sealed class DeactivateFieldCommandValidator : AbstractValidator<Deacti
 {
     public DeactivateFieldCommandValidator()
     {
+        RuleFor(c => c.TenantId).GreaterThan(0);
         RuleFor(c => c.FieldId).GreaterThan(0);
     }
 }

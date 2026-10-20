@@ -22,26 +22,12 @@ public class CreateFieldCommandValidatorTests
         _validator.TestValidate(Valid).ShouldNotHaveAnyValidationErrors();
     }
 
-    [Fact]
-    public void Validate_Should_Fail_WhenTheTypeIsUnknown()
-    {
-        _validator.TestValidate(Valid with { Type = (FieldType)99 })
-            .ShouldHaveValidationErrorFor(c => c.Type);
-    }
-
     [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void Validate_Should_Fail_WhenTheNameIsEmpty(string name)
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_Should_Fail_WhenTheTenantIdIsNotPositive(int tenantId)
     {
-        _validator.TestValidate(Valid with { Name = name })
-            .ShouldHaveValidationErrorFor(c => c.Name);
-    }
-
-    [Fact]
-    public void Validate_Should_Fail_WhenTheNameIsLongerThanTheColumn()
-    {
-        _validator.TestValidate(Valid with { Name = new string('x', CustomFieldDefinition.NameMaxLength + 1) })
-            .ShouldHaveValidationErrorFor(c => c.Name);
+        _validator.TestValidate(Valid with { TenantId = tenantId })
+            .ShouldHaveValidationErrorFor(c => c.TenantId);
     }
 }

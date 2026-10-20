@@ -13,7 +13,8 @@ internal sealed class RenameFieldOption : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("fields/{fieldId:int}/options/{optionId:int}", async (
+        app.MapPut("tenants/{tenantId:int}/fields/{fieldId:int}/options/{optionId:int}", async (
+            int tenantId,
             int fieldId,
             int optionId,
             Request request,
@@ -21,7 +22,7 @@ internal sealed class RenameFieldOption : IEndpoint
             CancellationToken cancellationToken) =>
         {
             Result result = await handler.Handle(
-                new RenameFieldOptionCommand(fieldId, optionId, request.Label),
+                new RenameFieldOptionCommand(tenantId, fieldId, optionId, request.Label),
                 cancellationToken);
 
             return result.Match(Results.NoContent, ApiResults.Problem);

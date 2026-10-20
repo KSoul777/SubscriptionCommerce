@@ -13,12 +13,17 @@ internal sealed class CreateTenantCommandHandler(
 {
     public async Task<Result<int>> Handle(CreateTenantCommand command, CancellationToken cancellationToken)
     {
-        var tenant = Tenant.Create(command.Name, timeProvider.GetUtcNow().UtcDateTime);
+        Result<Tenant> tenant = Tenant.Create(command.Name, timeProvider.GetUtcNow().UtcDateTime);
 
-        tenantRepository.Insert(tenant);
+        if (tenant.IsFailure)
+        {
+            return Result.Failure<int>(tenant.Error);
+        }
+
+        tenantRepository.Insert(tenant.Value);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return tenant.Id;
+        return tenant.Value.Id;
     }
 }

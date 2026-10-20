@@ -12,7 +12,7 @@ internal sealed class RenameFieldOptionCommandHandler(
 {
     public async Task<Result> Handle(RenameFieldOptionCommand command, CancellationToken cancellationToken)
     {
-        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.FieldId, cancellationToken);
+        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.TenantId, command.FieldId, cancellationToken);
 
         if (field is null)
         {
@@ -30,9 +30,8 @@ internal sealed class RenameFieldOptionCommandHandler(
         {
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
-        catch (ConcurrencyConflictException)
+        catch (ConcurrencyConflictException exception) when (exception.Kind == ConflictKind.DuplicateOptionLabel)
         {
-            // Another request gave another option this label between loading the field and this save.
             return Result.Failure(CustomFieldErrors.DuplicateOptionLabel);
         }
 

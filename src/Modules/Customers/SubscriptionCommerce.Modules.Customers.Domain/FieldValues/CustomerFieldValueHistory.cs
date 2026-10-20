@@ -1,7 +1,5 @@
 namespace SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
-// One transition from OldValue to NewValue. Id is a database identity, so it gives the order of changes
-// independent of any server clock.
 public sealed class CustomerFieldValueHistory
 {
     private CustomerFieldValueHistory()
@@ -12,7 +10,6 @@ public sealed class CustomerFieldValueHistory
 
     public int CustomerFieldValueId { get; private set; }
 
-    // Null for the first value.
     public FieldValueSnapshot? OldValue { get; private set; }
 
     public FieldValueSnapshot NewValue { get; private set; } = null!;

@@ -1,10 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubscriptionCommerce.Common.Application.Messaging;
 using SubscriptionCommerce.Common.Domain;
+using SubscriptionCommerce.Modules.Customers.Infrastructure.Database;
 
 namespace SubscriptionCommerce.Modules.Customers.IntegrationTests.Abstractions;
 
-// Tests share one database and stay independent by creating their own tenant, customer and fields.
 [Collection(nameof(IntegrationTestCollection))]
 public abstract class BaseIntegrationTest(IntegrationTestWebAppFactory factory) : IDisposable
 {
@@ -12,7 +13,6 @@ public abstract class BaseIntegrationTest(IntegrationTestWebAppFactory factory) 
 
     protected TestTimeProvider Clock => factory.Clock;
 
-    // Each call gets its own DI scope, and so its own DbContext, like a separate HTTP request.
     public async Task<Result<TResult>> SendCommand<TCommand, TResult>(TCommand command)
         where TCommand : ICommand<TResult>
     {
@@ -33,6 +33,26 @@ public abstract class BaseIntegrationTest(IntegrationTestWebAppFactory factory) 
             scope.ServiceProvider.GetRequiredService<IQueryHandler<TQuery, TResult>>();
 
         return await handler.Handle(query, CancellationToken.None);
+    }
+
+    protected IServiceScope CreateScope() => factory.Services.CreateScope();
+
+    protected async Task ExecuteSqlAsync(FormattableString sql)
+    {
+        using IServiceScope scope = factory.Services.CreateScope();
+
+        CustomersDbContext dbContext = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+
+        await dbContext.Database.ExecuteSqlAsync(sql);
+    }
+
+    protected async Task<T> QuerySingleAsync<T>(FormattableString sql)
+    {
+        using IServiceScope scope = factory.Services.CreateScope();
+
+        CustomersDbContext dbContext = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+
+        return await dbContext.Database.SqlQuery<T>(sql).SingleAsync();
     }
 
     public void Dispose()

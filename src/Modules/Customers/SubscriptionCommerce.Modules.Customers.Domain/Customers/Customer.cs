@@ -1,6 +1,7 @@
+using SubscriptionCommerce.Common.Domain;
+
 namespace SubscriptionCommerce.Modules.Customers.Domain.Customers;
 
-// Stands in for the ERP's existing customer table: just enough to attach field values to.
 public sealed class Customer
 {
     public const int NameMaxLength = 300;
@@ -17,11 +18,18 @@ public sealed class Customer
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    public static Customer Create(int tenantId, string name, DateTime utcNow) =>
-        new()
+    public static Result<Customer> Create(int tenantId, string? name, DateTime utcNow)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > NameMaxLength)
+        {
+            return Result.Failure<Customer>(CustomerErrors.NameInvalid);
+        }
+
+        return new Customer
         {
             TenantId = tenantId,
             Name = name.Trim(),
             CreatedAtUtc = utcNow
         };
+    }
 }

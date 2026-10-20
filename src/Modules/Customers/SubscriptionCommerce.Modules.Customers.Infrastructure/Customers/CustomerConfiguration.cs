@@ -12,5 +12,7 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Name).HasMaxLength(Customer.NameMaxLength);
         builder.HasOne<Tenant>().WithMany().HasForeignKey(c => c.TenantId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasAlternateKey(c => new { c.Id, c.TenantId });
     }
 }

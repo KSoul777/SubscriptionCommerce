@@ -7,7 +7,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Common\SubscriptionCommerce.Common.Infrastructure\SubscriptionCommerce.Common.Infrastructure.csproj" />
     <ProjectReference Include="..\SubscriptionCommerce.Modules.Customers.Application\SubscriptionCommerce.Modules.Customers.Application.csproj" />
-    <ProjectReference Include="..\SubscriptionCommerce.Modules.Customers.Presentation\SubscriptionCommerce.Modules.Customers.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SubscriptionCommerce.Modules.Customers.IntegrationTests" />
   </ItemGroup>
 
 </Project>

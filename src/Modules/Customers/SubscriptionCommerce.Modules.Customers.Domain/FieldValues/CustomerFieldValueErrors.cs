@@ -4,9 +4,18 @@ namespace SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
 public static class CustomerFieldValueErrors
 {
+    public static Error NotFound(int customerId, int fieldId) =>
+        Error.NotFound(
+            "CustomerFieldValues.NotFound",
+            $"The tenant has no customer {customerId} or no field {fieldId}");
+
     public static readonly Error ValueRequired = Error.Problem(
         "CustomerFieldValues.ValueRequired",
         "The field is required");
+
+    public static readonly Error TextTooLong = Error.Problem(
+        "CustomerFieldValues.TextTooLong",
+        $"The text must be at most {CustomerFieldValue.TextMaxLength} characters");
 
     public static readonly Error TextNotAllowed = Error.Problem(
         "CustomerFieldValues.TextNotAllowed",

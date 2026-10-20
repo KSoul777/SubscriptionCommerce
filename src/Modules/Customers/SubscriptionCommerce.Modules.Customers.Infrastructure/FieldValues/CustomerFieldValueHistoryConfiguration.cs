@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
+using SubscriptionCommerce.Modules.Customers.Domain.Users;
 
 namespace SubscriptionCommerce.Modules.Customers.Infrastructure.FieldValues;
 
@@ -13,9 +14,8 @@ internal sealed class CustomerFieldValueHistoryConfiguration : IEntityTypeConfig
     {
         builder.ToTable("CustomerFieldValueHistory");
         builder.HasKey(h => h.Id);
-        builder.Property(h => h.ChangedBy).HasMaxLength(200);
+        builder.Property(h => h.ChangedBy).HasMaxLength(UserName.MaxLength);
 
-        // Snapshots are stored as JSON: they are only ever written once and read back whole.
         builder.Property(h => h.OldValue)
             .HasConversion(
                 snapshot => JsonSerializer.Serialize(snapshot, JsonOptions),

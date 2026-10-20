@@ -1,6 +1,7 @@
+using SubscriptionCommerce.Common.Domain;
+
 namespace SubscriptionCommerce.Modules.Customers.Domain.Tenants;
 
-// A company using the ERP. Custom fields are defined per tenant.
 public sealed class Tenant
 {
     public const int NameMaxLength = 200;
@@ -15,10 +16,17 @@ public sealed class Tenant
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    public static Tenant Create(string name, DateTime utcNow) =>
-        new()
+    public static Result<Tenant> Create(string? name, DateTime utcNow)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > NameMaxLength)
+        {
+            return Result.Failure<Tenant>(TenantErrors.NameInvalid);
+        }
+
+        return new Tenant
         {
             Name = name.Trim(),
             CreatedAtUtc = utcNow
         };
+    }
 }

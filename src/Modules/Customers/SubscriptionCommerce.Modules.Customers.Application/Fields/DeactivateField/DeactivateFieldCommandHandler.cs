@@ -12,7 +12,7 @@ internal sealed class DeactivateFieldCommandHandler(
 {
     public async Task<Result> Handle(DeactivateFieldCommand command, CancellationToken cancellationToken)
     {
-        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.FieldId, cancellationToken);
+        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.TenantId, command.FieldId, cancellationToken);
 
         if (field is null)
         {

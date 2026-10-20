@@ -43,6 +43,7 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Customers", x => x.Id);
+                    table.UniqueConstraint("AK_Customers_Id_TenantId", x => new { x.Id, x.TenantId });
                     table.ForeignKey(
                         name: "FK_Customers_Tenants_TenantId",
                         column: x => x.TenantId,
@@ -67,11 +68,14 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                     SortOrder = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false)
+                    CreatedBy = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    NormalizedName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false, computedColumnSql: "UPPER([Name] COLLATE Latin1_General_100_BIN2)", stored: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CustomFieldDefinitions", x => x.Id);
+                    table.UniqueConstraint("AK_CustomFieldDefinitions_Id_TenantId", x => new { x.Id, x.TenantId });
+                    table.CheckConstraint("CK_CustomFieldDefinitions_Name_Canonical", "DATALENGTH([Name]) > 0 AND UNICODE(LEFT([Name], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288) AND UNICODE(RIGHT([Name], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288)");
                     table.ForeignKey(
                         name: "FK_CustomFieldDefinitions_Tenants_TenantId",
                         column: x => x.TenantId,
@@ -88,6 +92,7 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    TenantId = table.Column<int>(type: "int", nullable: false),
                     CustomerId = table.Column<int>(type: "int", nullable: false),
                     FieldDefinitionId = table.Column<int>(type: "int", nullable: false),
                     TextValue = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
@@ -98,19 +103,20 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CustomerFieldValues", x => x.Id);
+                    table.UniqueConstraint("AK_CustomerFieldValues_Id_FieldDefinitionId", x => new { x.Id, x.FieldDefinitionId });
                     table.ForeignKey(
-                        name: "FK_CustomerFieldValues_CustomFieldDefinitions_FieldDefinitionId",
-                        column: x => x.FieldDefinitionId,
+                        name: "FK_CustomerFieldValues_CustomFieldDefinitions_FieldDefinitionId_TenantId",
+                        columns: x => new { x.FieldDefinitionId, x.TenantId },
                         principalSchema: "customers",
                         principalTable: "CustomFieldDefinitions",
-                        principalColumn: "Id",
+                        principalColumns: new[] { "Id", "TenantId" },
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_CustomerFieldValues_Customers_CustomerId",
-                        column: x => x.CustomerId,
+                        name: "FK_CustomerFieldValues_Customers_CustomerId_TenantId",
+                        columns: x => new { x.CustomerId, x.TenantId },
                         principalSchema: "customers",
                         principalTable: "Customers",
-                        principalColumn: "Id",
+                        principalColumns: new[] { "Id", "TenantId" },
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -124,11 +130,14 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                     FieldDefinitionId = table.Column<int>(type: "int", nullable: false),
                     Label = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     SortOrder = table.Column<int>(type: "int", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    NormalizedLabel = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false, computedColumnSql: "UPPER([Label] COLLATE Latin1_General_100_BIN2)", stored: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CustomFieldOptions", x => x.Id);
+                    table.UniqueConstraint("AK_CustomFieldOptions_Id_FieldDefinitionId", x => new { x.Id, x.FieldDefinitionId });
+                    table.CheckConstraint("CK_CustomFieldOptions_Label_Canonical", "DATALENGTH([Label]) > 0 AND UNICODE(LEFT([Label], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288) AND UNICODE(RIGHT([Label], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288)");
                     table.ForeignKey(
                         name: "FK_CustomFieldOptions_CustomFieldDefinitions_FieldDefinitionId",
                         column: x => x.FieldDefinitionId,
@@ -169,24 +178,25 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 columns: table => new
                 {
                     CustomerFieldValueId = table.Column<int>(type: "int", nullable: false),
-                    OptionId = table.Column<int>(type: "int", nullable: false)
+                    OptionId = table.Column<int>(type: "int", nullable: false),
+                    FieldDefinitionId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CustomerFieldValueOptions", x => new { x.CustomerFieldValueId, x.OptionId });
                     table.ForeignKey(
-                        name: "FK_CustomerFieldValueOptions_CustomFieldOptions_OptionId",
-                        column: x => x.OptionId,
+                        name: "FK_CustomerFieldValueOptions_CustomFieldOptions_OptionId_FieldDefinitionId",
+                        columns: x => new { x.OptionId, x.FieldDefinitionId },
                         principalSchema: "customers",
                         principalTable: "CustomFieldOptions",
-                        principalColumn: "Id",
+                        principalColumns: new[] { "Id", "FieldDefinitionId" },
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_CustomerFieldValueOptions_CustomerFieldValues_CustomerFieldValueId",
-                        column: x => x.CustomerFieldValueId,
+                        name: "FK_CustomerFieldValueOptions_CustomerFieldValues_CustomerFieldValueId_FieldDefinitionId",
+                        columns: x => new { x.CustomerFieldValueId, x.FieldDefinitionId },
                         principalSchema: "customers",
                         principalTable: "CustomerFieldValues",
-                        principalColumn: "Id",
+                        principalColumns: new[] { "Id", "FieldDefinitionId" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -197,10 +207,16 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 column: "CustomerFieldValueId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CustomerFieldValueOptions_OptionId",
+                name: "IX_CustomerFieldValueOptions_CustomerFieldValueId_FieldDefinitionId",
                 schema: "customers",
                 table: "CustomerFieldValueOptions",
-                column: "OptionId");
+                columns: new[] { "CustomerFieldValueId", "FieldDefinitionId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerFieldValueOptions_OptionId_FieldDefinitionId",
+                schema: "customers",
+                table: "CustomerFieldValueOptions",
+                columns: new[] { "OptionId", "FieldDefinitionId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_CustomerFieldValues_CustomerId_FieldDefinitionId",
@@ -210,10 +226,16 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_CustomerFieldValues_FieldDefinitionId",
+                name: "IX_CustomerFieldValues_CustomerId_TenantId",
                 schema: "customers",
                 table: "CustomerFieldValues",
-                column: "FieldDefinitionId");
+                columns: new[] { "CustomerId", "TenantId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerFieldValues_FieldDefinitionId_TenantId",
+                schema: "customers",
+                table: "CustomerFieldValues",
+                columns: new[] { "FieldDefinitionId", "TenantId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Customers_TenantId",
@@ -222,17 +244,17 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CustomFieldDefinitions_TenantId_Name",
+                name: "IX_CustomFieldDefinitions_TenantId_NormalizedName",
                 schema: "customers",
                 table: "CustomFieldDefinitions",
-                columns: new[] { "TenantId", "Name" },
+                columns: new[] { "TenantId", "NormalizedName" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_CustomFieldOptions_FieldDefinitionId_Label",
+                name: "IX_CustomFieldOptions_FieldDefinitionId_NormalizedLabel",
                 schema: "customers",
                 table: "CustomFieldOptions",
-                columns: new[] { "FieldDefinitionId", "Label" },
+                columns: new[] { "FieldDefinitionId", "NormalizedLabel" },
                 unique: true);
         }
 

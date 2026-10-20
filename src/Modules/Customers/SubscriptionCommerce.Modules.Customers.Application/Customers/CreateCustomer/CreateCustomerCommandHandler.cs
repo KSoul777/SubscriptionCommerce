@@ -20,12 +20,17 @@ internal sealed class CreateCustomerCommandHandler(
             return Result.Failure<int>(TenantErrors.NotFound(command.TenantId));
         }
 
-        var customer = Customer.Create(command.TenantId, command.Name, timeProvider.GetUtcNow().UtcDateTime);
+        Result<Customer> customer = Customer.Create(command.TenantId, command.Name, timeProvider.GetUtcNow().UtcDateTime);
 
-        customerRepository.Insert(customer);
+        if (customer.IsFailure)
+        {
+            return Result.Failure<int>(customer.Error);
+        }
+
+        customerRepository.Insert(customer.Value);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return customer.Id;
+        return customer.Value.Id;
     }
 }

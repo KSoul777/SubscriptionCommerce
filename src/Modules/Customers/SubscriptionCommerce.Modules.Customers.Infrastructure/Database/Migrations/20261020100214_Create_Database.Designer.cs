@@ -12,7 +12,7 @@ using SubscriptionCommerce.Modules.Customers.Infrastructure.Database;
 namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(CustomersDbContext))]
-    [Migration("20261016102033_Create_Database")]
+    [Migration("20261020100214_Create_Database")]
     partial class Create_Database
     {
         /// <inheritdoc />
@@ -72,6 +72,9 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.Property<string>("TextValue")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -86,10 +89,12 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FieldDefinitionId");
-
                     b.HasIndex("CustomerId", "FieldDefinitionId")
                         .IsUnique();
+
+                    b.HasIndex("CustomerId", "TenantId");
+
+                    b.HasIndex("FieldDefinitionId", "TenantId");
 
                     b.ToTable("CustomerFieldValues", "customers");
                 });
@@ -135,9 +140,14 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                     b.Property<int>("OptionId")
                         .HasColumnType("int");
 
+                    b.Property<int>("FieldDefinitionId")
+                        .HasColumnType("int");
+
                     b.HasKey("CustomerFieldValueId", "OptionId");
 
-                    b.HasIndex("OptionId");
+                    b.HasIndex("CustomerFieldValueId", "FieldDefinitionId");
+
+                    b.HasIndex("OptionId", "FieldDefinitionId");
 
                     b.ToTable("CustomerFieldValueOptions", "customers");
                 });
@@ -172,6 +182,13 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasComputedColumnSql("UPPER([Name] COLLATE Latin1_General_100_BIN2)", true);
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
@@ -185,10 +202,13 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TenantId", "NormalizedName")
                         .IsUnique();
 
-                    b.ToTable("CustomFieldDefinitions", "customers");
+                    b.ToTable("CustomFieldDefinitions", "customers", t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomFieldDefinitions_Name_Canonical", "DATALENGTH([Name]) > 0 AND UNICODE(LEFT([Name], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288) AND UNICODE(RIGHT([Name], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288)");
+                        });
                 });
 
             modelBuilder.Entity("SubscriptionCommerce.Modules.Customers.Domain.Fields.CustomFieldOption", b =>
@@ -210,15 +230,25 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("NormalizedLabel")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasComputedColumnSql("UPPER([Label] COLLATE Latin1_General_100_BIN2)", true);
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FieldDefinitionId", "Label")
+                    b.HasIndex("FieldDefinitionId", "NormalizedLabel")
                         .IsUnique();
 
-                    b.ToTable("CustomFieldOptions", "customers");
+                    b.ToTable("CustomFieldOptions", "customers", t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomFieldOptions_Label_Canonical", "DATALENGTH([Label]) > 0 AND UNICODE(LEFT([Label], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288) AND UNICODE(RIGHT([Label], 1)) NOT IN (9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288)");
+                        });
                 });
 
             modelBuilder.Entity("SubscriptionCommerce.Modules.Customers.Domain.Tenants.Tenant", b =>
@@ -255,13 +285,15 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 {
                     b.HasOne("SubscriptionCommerce.Modules.Customers.Domain.Customers.Customer", null)
                         .WithMany()
-                        .HasForeignKey("CustomerId")
+                        .HasForeignKey("CustomerId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SubscriptionCommerce.Modules.Customers.Domain.Fields.CustomFieldDefinition", null)
                         .WithMany()
-                        .HasForeignKey("FieldDefinitionId")
+                        .HasForeignKey("FieldDefinitionId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -269,7 +301,7 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
             modelBuilder.Entity("SubscriptionCommerce.Modules.Customers.Domain.FieldValues.CustomerFieldValueHistory", b =>
                 {
                     b.HasOne("SubscriptionCommerce.Modules.Customers.Domain.FieldValues.CustomerFieldValue", null)
-                        .WithMany("History")
+                        .WithMany("PendingHistory")
                         .HasForeignKey("CustomerFieldValueId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -279,13 +311,15 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
                 {
                     b.HasOne("SubscriptionCommerce.Modules.Customers.Domain.FieldValues.CustomerFieldValue", null)
                         .WithMany("SelectedOptions")
-                        .HasForeignKey("CustomerFieldValueId")
+                        .HasForeignKey("CustomerFieldValueId", "FieldDefinitionId")
+                        .HasPrincipalKey("Id", "FieldDefinitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("SubscriptionCommerce.Modules.Customers.Domain.Fields.CustomFieldOption", null)
                         .WithMany()
-                        .HasForeignKey("OptionId")
+                        .HasForeignKey("OptionId", "FieldDefinitionId")
+                        .HasPrincipalKey("Id", "FieldDefinitionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -310,7 +344,7 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database.Migrati
 
             modelBuilder.Entity("SubscriptionCommerce.Modules.Customers.Domain.FieldValues.CustomerFieldValue", b =>
                 {
-                    b.Navigation("History");
+                    b.Navigation("PendingHistory");
 
                     b.Navigation("SelectedOptions");
                 });

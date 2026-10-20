@@ -1,4 +1,5 @@
 using SubscriptionCommerce.Modules.Customers.Domain.Fields;
+using SubscriptionCommerce.Modules.Customers.Domain.Users;
 
 namespace SubscriptionCommerce.Modules.Customers.UnitTests.Abstractions;
 
@@ -8,8 +9,12 @@ internal static class Fields
 
     internal static readonly DateTime UtcNow = new(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
 
+    internal static readonly UserName Tester = UserName.Create("tester").Value;
+
+    internal static readonly UserName Maria = UserName.Create("maria").Value;
+
     internal static CustomFieldDefinition Text(bool isRequired = false) =>
-        CustomFieldDefinition.Create(1, "Tier", FieldType.Text, false, isRequired, 0, "tester", UtcNow)
+        CustomFieldDefinition.Create(1, "Tier", FieldType.Text, false, isRequired, 0, Tester, UtcNow)
             .Value
             .Set(f => f.Id, FieldId);
 
@@ -20,11 +25,10 @@ internal static class Fields
     internal static CustomFieldOption Option(this CustomFieldDefinition field, string label) =>
         field.Options.Single(o => o.Label == label);
 
-    // Options get ids 10, 11, 12, ... and sort order 0, 1, 2, ... in the order of the labels.
     private static CustomFieldDefinition CreateDropdown(bool allowMultipleSelection, string[] labels)
     {
         CustomFieldDefinition field = CustomFieldDefinition
-            .Create(1, "Contact", FieldType.Dropdown, allowMultipleSelection, false, 0, "tester", UtcNow)
+            .Create(1, "Contact", FieldType.Dropdown, allowMultipleSelection, false, 0, Tester, UtcNow)
             .Value
             .Set(f => f.Id, FieldId);
 

@@ -13,14 +13,19 @@ internal sealed class GetFieldValueHistory : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("customers/{customerId:int}/fields/{fieldId:int}/history", async (
+        app.MapGet("tenants/{tenantId:int}/customers/{customerId:int}/fields/{fieldId:int}/history", async (
+            int tenantId,
             int customerId,
             int fieldId,
-            IQueryHandler<GetFieldValueHistoryQuery, IReadOnlyList<FieldValueHistoryResponse>> handler,
+            long? after,
+            int? limit,
+            IQueryHandler<GetFieldValueHistoryQuery, FieldValueHistoryPage> handler,
             CancellationToken cancellationToken) =>
         {
-            Result<IReadOnlyList<FieldValueHistoryResponse>> result =
-                await handler.Handle(new GetFieldValueHistoryQuery(customerId, fieldId), cancellationToken);
+            var query = new GetFieldValueHistoryQuery(
+                tenantId, customerId, fieldId, after, limit ?? GetFieldValueHistoryQuery.DefaultLimit);
+
+            Result<FieldValueHistoryPage> result = await handler.Handle(query, cancellationToken);
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })

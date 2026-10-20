@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Customers.Application.Customers.CreateCustomer;
 using SubscriptionCommerce.Modules.Customers.Application.Customers.GetCustomerProfile;
@@ -27,34 +28,53 @@ internal static class CommandHelpers
         (await test.SendCommand<CreateFieldCommand, int>(
             new CreateFieldCommand(tenantId, name, type, allowMultipleSelection, IsRequired: false, SortOrder: 0))).Value;
 
-    internal static async Task<int> AddOptionAsync(this BaseIntegrationTest test, int fieldId, string label, int sortOrder) =>
-        (await test.SendCommand<AddFieldOptionCommand, int>(new AddFieldOptionCommand(fieldId, label, sortOrder))).Value;
+    internal static async Task<int> AddOptionAsync(
+        this BaseIntegrationTest test,
+        int tenantId,
+        int fieldId,
+        string label,
+        int sortOrder) =>
+        (await test.SendCommand<AddFieldOptionCommand, int>(
+            new AddFieldOptionCommand(tenantId, fieldId, label, sortOrder))).Value;
 
     internal static Task<Result<SetCustomerFieldValueResponse>> SetTextAsync(
         this BaseIntegrationTest test,
+        int tenantId,
         int customerId,
         int fieldId,
         string text,
         string? rowVersion) =>
         test.SendCommand<SetCustomerFieldValueCommand, SetCustomerFieldValueResponse>(
-            new SetCustomerFieldValueCommand(customerId, fieldId, text, [], rowVersion));
+            new SetCustomerFieldValueCommand(tenantId, customerId, fieldId, text, [], rowVersion));
 
     internal static Task<Result<SetCustomerFieldValueResponse>> SetOptionsAsync(
         this BaseIntegrationTest test,
+        int tenantId,
         int customerId,
         int fieldId,
         int[] optionIds,
         string? rowVersion) =>
         test.SendCommand<SetCustomerFieldValueCommand, SetCustomerFieldValueResponse>(
-            new SetCustomerFieldValueCommand(customerId, fieldId, TextValue: null, optionIds, rowVersion));
+            new SetCustomerFieldValueCommand(tenantId, customerId, fieldId, TextValue: null, optionIds, rowVersion));
 
-    internal static async Task<CustomerProfileResponse> GetProfileAsync(this BaseIntegrationTest test, int customerId) =>
-        (await test.SendQuery<GetCustomerProfileQuery, CustomerProfileResponse>(new GetCustomerProfileQuery(customerId))).Value;
+    internal static async Task<CustomerProfileResponse> GetProfileAsync(
+        this BaseIntegrationTest test,
+        int tenantId,
+        int customerId) =>
+        (await test.SendQuery<GetCustomerProfileQuery, CustomerProfileResponse>(
+            new GetCustomerProfileQuery(tenantId, customerId))).Value;
 
     internal static async Task<IReadOnlyList<FieldValueHistoryResponse>> GetHistoryAsync(
         this BaseIntegrationTest test,
+        int tenantId,
         int customerId,
-        int fieldId) =>
-        (await test.SendQuery<GetFieldValueHistoryQuery, IReadOnlyList<FieldValueHistoryResponse>>(
-            new GetFieldValueHistoryQuery(customerId, fieldId))).Value;
+        int fieldId)
+    {
+        FieldValueHistoryPage page = (await test.SendQuery<GetFieldValueHistoryQuery, FieldValueHistoryPage>(
+            new GetFieldValueHistoryQuery(tenantId, customerId, fieldId, After: null, GetFieldValueHistoryQuery.MaxLimit))).Value;
+
+        page.NextAfter.Should().BeNull();
+
+        return page.Items;
+    }
 }

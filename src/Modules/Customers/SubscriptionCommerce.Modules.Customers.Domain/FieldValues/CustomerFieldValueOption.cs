@@ -1,6 +1,5 @@
 namespace SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
-// One selected option of a dropdown value.
 public sealed class CustomerFieldValueOption
 {
     private CustomerFieldValueOption()
@@ -9,7 +8,10 @@ public sealed class CustomerFieldValueOption
 
     public int CustomerFieldValueId { get; private set; }
 
+    public int FieldDefinitionId { get; private set; }
+
     public int OptionId { get; private set; }
 
-    internal static CustomerFieldValueOption Create(int optionId) => new() { OptionId = optionId };
+    internal static CustomerFieldValueOption Create(int fieldDefinitionId, int optionId) =>
+        new() { FieldDefinitionId = fieldDefinitionId, OptionId = optionId };
 }

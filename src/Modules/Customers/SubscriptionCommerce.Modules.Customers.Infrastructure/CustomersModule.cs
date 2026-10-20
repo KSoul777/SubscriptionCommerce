@@ -3,8 +3,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SubscriptionCommerce.Common.Infrastructure.Configuration;
-using SubscriptionCommerce.Common.Presentation.Endpoints;
 using SubscriptionCommerce.Modules.Customers.Application.Abstractions.Data;
+using SubscriptionCommerce.Modules.Customers.Application.Customers.GetCustomerProfile;
+using SubscriptionCommerce.Modules.Customers.Application.FieldValues.GetFieldValueHistory;
 using SubscriptionCommerce.Modules.Customers.Domain.Customers;
 using SubscriptionCommerce.Modules.Customers.Domain.Fields;
 using SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
@@ -25,8 +26,6 @@ public static class CustomersModule
     {
         services.AddInfrastructure(configuration);
 
-        services.AddEndpoints(Presentation.AssemblyReference.Assembly);
-
         return services;
     }
 
@@ -43,5 +42,8 @@ public static class CustomersModule
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICustomFieldDefinitionRepository, CustomFieldDefinitionRepository>();
         services.AddScoped<ICustomerFieldValueRepository, CustomerFieldValueRepository>();
+
+        services.AddScoped<ICustomerProfileReader, CustomerProfileReader>();
+        services.AddScoped<IFieldValueHistoryReader, FieldValueHistoryReader>();
     }
 }

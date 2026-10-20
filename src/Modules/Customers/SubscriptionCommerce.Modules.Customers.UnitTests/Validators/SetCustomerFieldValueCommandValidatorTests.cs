@@ -1,12 +1,12 @@
 using FluentValidation.TestHelper;
 using SubscriptionCommerce.Modules.Customers.Application.FieldValues.SetCustomerFieldValue;
-using SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
 namespace SubscriptionCommerce.Modules.Customers.UnitTests.Validators;
 
 public class SetCustomerFieldValueCommandValidatorTests
 {
     private static readonly SetCustomerFieldValueCommand Valid = new(
+        TenantId: 1,
         CustomerId: 1,
         FieldId: 2,
         TextValue: "Gold",
@@ -21,6 +21,17 @@ public class SetCustomerFieldValueCommandValidatorTests
         _validator.TestValidate(Valid).ShouldNotHaveAnyValidationErrors();
     }
 
+    [Fact]
+    public void Validate_Should_Fail_WhenAnIdIsNotPositive()
+    {
+        TestValidationResult<SetCustomerFieldValueCommand> result =
+            _validator.TestValidate(Valid with { TenantId = 0, CustomerId = -1, FieldId = 0 });
+
+        result.ShouldHaveValidationErrorFor(c => c.TenantId);
+        result.ShouldHaveValidationErrorFor(c => c.CustomerId);
+        result.ShouldHaveValidationErrorFor(c => c.FieldId);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -32,26 +43,12 @@ public class SetCustomerFieldValueCommandValidatorTests
 
     [Theory]
     [InlineData("not base64!")]
-    [InlineData("AAAAAA==")]         // 4 bytes
-    [InlineData("AAAAAAAAAAAA")]     // 9 bytes
+    [InlineData("AAAAAA==")]
+    [InlineData("AAAAAAAAAAAA")]
     public void Validate_Should_Fail_WhenTheRowVersionIsNotEightBytesOfBase64(string rowVersion)
     {
         _validator.TestValidate(Valid with { RowVersion = rowVersion })
             .ShouldHaveValidationErrorFor(c => c.RowVersion);
-    }
-
-    [Fact]
-    public void Validate_Should_Fail_WhenTheTextIsLongerThanTheColumn()
-    {
-        _validator.TestValidate(Valid with { TextValue = new string('x', CustomerFieldValue.TextMaxLength + 1) })
-            .ShouldHaveValidationErrorFor(c => c.TextValue);
-    }
-
-    [Fact]
-    public void Validate_Should_AcceptTextOfExactlyTheMaximumLength()
-    {
-        _validator.TestValidate(Valid with { TextValue = new string('x', CustomerFieldValue.TextMaxLength) })
-            .ShouldNotHaveValidationErrorFor(c => c.TextValue);
     }
 
     [Fact]

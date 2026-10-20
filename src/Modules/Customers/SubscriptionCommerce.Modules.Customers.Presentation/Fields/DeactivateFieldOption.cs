@@ -9,18 +9,18 @@ using SubscriptionCommerce.Modules.Customers.Application.Fields.DeactivateFieldO
 
 namespace SubscriptionCommerce.Modules.Customers.Presentation.Fields;
 
-// A soft delete, so PUT .../deactivate rather than DELETE.
 internal sealed class DeactivateFieldOption : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("fields/{fieldId:int}/options/{optionId:int}/deactivate", async (
+        app.MapPut("tenants/{tenantId:int}/fields/{fieldId:int}/options/{optionId:int}/deactivate", async (
+            int tenantId,
             int fieldId,
             int optionId,
             ICommandHandler<DeactivateFieldOptionCommand> handler,
             CancellationToken cancellationToken) =>
         {
-            Result result = await handler.Handle(new DeactivateFieldOptionCommand(fieldId, optionId), cancellationToken);
+            Result result = await handler.Handle(new DeactivateFieldOptionCommand(tenantId, fieldId, optionId), cancellationToken);
 
             return result.Match(Results.NoContent, ApiResults.Problem);
         })

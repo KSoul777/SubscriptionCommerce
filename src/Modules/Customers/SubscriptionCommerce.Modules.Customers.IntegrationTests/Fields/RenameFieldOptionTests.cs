@@ -13,24 +13,21 @@ public sealed class RenameFieldOptionTests(IntegrationTestWebAppFactory factory)
     [Fact]
     public async Task Should_KeepTheOldLabelInHistory_WhileTheProfileShowsTheNewOne()
     {
-        // Arrange: a customer picked "Email" before the option is renamed.
         int tenantId = await this.CreateTenantAsync();
         int customerId = await this.CreateCustomerAsync(tenantId);
         int fieldId = await this.CreateFieldAsync(tenantId, FieldType.Dropdown, name: "Contact");
-        int email = await this.AddOptionAsync(fieldId, "Email", sortOrder: 0);
-        await this.SetOptionsAsync(customerId, fieldId, [email], rowVersion: null);
+        int email = await this.AddOptionAsync(tenantId, fieldId, "Email", sortOrder: 0);
+        await this.SetOptionsAsync(tenantId, customerId, fieldId, [email], rowVersion: null);
 
-        // Act
         using HttpResponseMessage response = await HttpClient.PutAsJsonAsync(
-            $"fields/{fieldId}/options/{email}", new { label = "E-mail" });
+            $"tenants/{tenantId}/fields/{fieldId}/options/{email}", new { label = "E-mail" });
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        (await this.GetHistoryAsync(customerId, fieldId)).Single().NewValue.Options
+        (await this.GetHistoryAsync(tenantId, customerId, fieldId)).Single().NewValue.Options
             .Should().Equal(new SnapshotOption(email, "Email"));
 
-        ProfileFieldResponse field = (await this.GetProfileAsync(customerId)).Fields.Single();
+        ProfileFieldResponse field = (await this.GetProfileAsync(tenantId, customerId)).Fields.Single();
         field.SelectedOptions.Should().Equal(new OptionResponse(email, "E-mail"));
     }
 
@@ -39,11 +36,11 @@ public sealed class RenameFieldOptionTests(IntegrationTestWebAppFactory factory)
     {
         int tenantId = await this.CreateTenantAsync();
         int fieldId = await this.CreateFieldAsync(tenantId, FieldType.Dropdown, name: "Contact");
-        await this.AddOptionAsync(fieldId, "Email", sortOrder: 0);
-        int phone = await this.AddOptionAsync(fieldId, "Phone", sortOrder: 1);
+        await this.AddOptionAsync(tenantId, fieldId, "Email", sortOrder: 0);
+        int phone = await this.AddOptionAsync(tenantId, fieldId, "Phone", sortOrder: 1);
 
         using HttpResponseMessage response = await HttpClient.PutAsJsonAsync(
-            $"fields/{fieldId}/options/{phone}", new { label = "email" });
+            $"tenants/{tenantId}/fields/{fieldId}/options/{phone}", new { label = "email" });
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -54,11 +51,28 @@ public sealed class RenameFieldOptionTests(IntegrationTestWebAppFactory factory)
         int tenantId = await this.CreateTenantAsync();
         int fieldId = await this.CreateFieldAsync(tenantId, FieldType.Dropdown, name: "Contact");
         int otherFieldId = await this.CreateFieldAsync(tenantId, FieldType.Dropdown, name: "Industry");
-        int otherFieldsOption = await this.AddOptionAsync(otherFieldId, "Education", sortOrder: 0);
+        int otherFieldsOption = await this.AddOptionAsync(tenantId, otherFieldId, "Education", sortOrder: 0);
 
         using HttpResponseMessage response = await HttpClient.PutAsJsonAsync(
-            $"fields/{fieldId}/options/{otherFieldsOption}", new { label = "Retail" });
+            $"tenants/{tenantId}/fields/{fieldId}/options/{otherFieldsOption}", new { label = "Retail" });
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Should_Return404_AndLeaveTheOptionAlone_WhenTheFieldBelongsToAnotherTenant()
+    {
+        int tenantId = await this.CreateTenantAsync();
+        int fieldId = await this.CreateFieldAsync(tenantId, FieldType.Dropdown, name: "Contact");
+        int email = await this.AddOptionAsync(tenantId, fieldId, "Email", sortOrder: 0);
+        int otherTenantId = await this.CreateTenantAsync();
+
+        using HttpResponseMessage response = await HttpClient.PutAsJsonAsync(
+            $"tenants/{otherTenantId}/fields/{fieldId}/options/{email}", new { label = "Hijacked" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        int customerId = await this.CreateCustomerAsync(tenantId);
+        (await this.GetProfileAsync(tenantId, customerId)).Fields.Single().AvailableOptions
+            .Should().Equal(new OptionResponse(email, "Email"));
     }
 }

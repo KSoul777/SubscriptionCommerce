@@ -4,6 +4,7 @@ using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Customers.Application.Abstractions.Data;
 using SubscriptionCommerce.Modules.Customers.Domain.Fields;
 using SubscriptionCommerce.Modules.Customers.Domain.Tenants;
+using SubscriptionCommerce.Modules.Customers.Domain.Users;
 
 namespace SubscriptionCommerce.Modules.Customers.Application.Fields.CreateField;
 
@@ -17,14 +18,16 @@ internal sealed class CreateFieldCommandHandler(
 {
     public async Task<Result<int>> Handle(CreateFieldCommand command, CancellationToken cancellationToken)
     {
+        Result<UserName> createdBy = UserName.Create(currentUser.UserName);
+
+        if (createdBy.IsFailure)
+        {
+            return Result.Failure<int>(createdBy.Error);
+        }
+
         if (!await tenantRepository.ExistsAsync(command.TenantId, cancellationToken))
         {
             return Result.Failure<int>(TenantErrors.NotFound(command.TenantId));
-        }
-
-        if (await fieldRepository.NameExistsAsync(command.TenantId, command.Name.Trim(), cancellationToken))
-        {
-            return Result.Failure<int>(CustomFieldErrors.DuplicateName);
         }
 
         Result<CustomFieldDefinition> field = CustomFieldDefinition.Create(
@@ -34,12 +37,17 @@ internal sealed class CreateFieldCommandHandler(
             command.AllowMultipleSelection,
             command.IsRequired,
             command.SortOrder,
-            currentUser.UserName,
+            createdBy.Value,
             timeProvider.GetUtcNow().UtcDateTime);
 
         if (field.IsFailure)
         {
             return Result.Failure<int>(field.Error);
+        }
+
+        if (await fieldRepository.NameExistsAsync(command.TenantId, field.Value.Name, cancellationToken))
+        {
+            return Result.Failure<int>(CustomFieldErrors.DuplicateName);
         }
 
         fieldRepository.Insert(field.Value);
@@ -48,9 +56,8 @@ internal sealed class CreateFieldCommandHandler(
         {
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
-        catch (ConcurrencyConflictException)
+        catch (ConcurrencyConflictException exception) when (exception.Kind == ConflictKind.DuplicateFieldName)
         {
-            // Another request created the same name between the check above and this save.
             return Result.Failure<int>(CustomFieldErrors.DuplicateName);
         }
 

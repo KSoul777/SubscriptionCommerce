@@ -2,7 +2,7 @@ using SubscriptionCommerce.Common.Application.Messaging;
 
 namespace SubscriptionCommerce.Modules.Customers.Application.Customers.GetCustomerProfile;
 
-public sealed record GetCustomerProfileQuery(int CustomerId) : IQuery<CustomerProfileResponse>;
+public sealed record GetCustomerProfileQuery(int TenantId, int CustomerId) : IQuery<CustomerProfileResponse>;
 
 public sealed record CustomerProfileResponse(
     int CustomerId,
@@ -10,7 +10,6 @@ public sealed record CustomerProfileResponse(
     string Name,
     IReadOnlyList<ProfileFieldResponse> Fields);
 
-// RowVersion is null until the customer has a value for the field; send it back when setting the value.
 public sealed record ProfileFieldResponse(
     int FieldId,
     string Name,

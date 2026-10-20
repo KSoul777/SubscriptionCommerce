@@ -10,6 +10,18 @@ public static class CustomFieldErrors
     public static Error OptionNotFound(int optionId) =>
         Error.NotFound("CustomFields.OptionNotFound", $"The field has no option with the identifier {optionId}");
 
+    public static readonly Error NameInvalid = Error.Problem(
+        "CustomFields.NameInvalid",
+        $"The field name is required and must be at most {CustomFieldDefinition.NameMaxLength} characters");
+
+    public static readonly Error UnknownType = Error.Problem(
+        "CustomFields.UnknownType",
+        "The field type must be Text or Dropdown");
+
+    public static readonly Error OptionLabelInvalid = Error.Problem(
+        "CustomFields.OptionLabelInvalid",
+        $"The option label is required and must be at most {CustomFieldOption.LabelMaxLength} characters");
+
     public static readonly Error DuplicateName = Error.Conflict(
         "CustomFields.DuplicateName",
         "A custom field with this name already exists for the tenant");

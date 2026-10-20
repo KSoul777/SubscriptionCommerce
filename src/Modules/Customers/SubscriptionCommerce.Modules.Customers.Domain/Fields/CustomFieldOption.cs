@@ -1,6 +1,5 @@
 namespace SubscriptionCommerce.Modules.Customers.Domain.Fields;
 
-// One choice of a dropdown field. Never hard-deleted: IsActive keeps old selections and history readable.
 public sealed class CustomFieldOption
 {
     public const int LabelMaxLength = 200;

@@ -1,9 +1,8 @@
 using SubscriptionCommerce.Common.Domain;
+using SubscriptionCommerce.Modules.Customers.Domain.Users;
 
 namespace SubscriptionCommerce.Modules.Customers.Domain.Fields;
 
-// A field the tenant's users add to every customer profile. The type is fixed at creation:
-// there is no way to change it, so existing values can never end up with the wrong shape.
 public sealed class CustomFieldDefinition
 {
     public const int NameMaxLength = 200;
@@ -22,7 +21,6 @@ public sealed class CustomFieldDefinition
 
     public FieldType Type { get; private set; }
 
-    // Dropdown only. The brief's "dropdown with multiple selectable values" can mean either; both are supported.
     public bool AllowMultipleSelection { get; private set; }
 
     public bool IsRequired { get; private set; }
@@ -35,18 +33,28 @@ public sealed class CustomFieldDefinition
 
     public string CreatedBy { get; private set; } = null!;
 
-    public IReadOnlyCollection<CustomFieldOption> Options => _options;
+    public IReadOnlyCollection<CustomFieldOption> Options => _options.AsReadOnly();
 
     public static Result<CustomFieldDefinition> Create(
         int tenantId,
-        string name,
+        string? name,
         FieldType type,
         bool allowMultipleSelection,
         bool isRequired,
         int sortOrder,
-        string createdBy,
+        UserName createdBy,
         DateTime utcNow)
     {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > NameMaxLength)
+        {
+            return Result.Failure<CustomFieldDefinition>(CustomFieldErrors.NameInvalid);
+        }
+
+        if (!Enum.IsDefined(type))
+        {
+            return Result.Failure<CustomFieldDefinition>(CustomFieldErrors.UnknownType);
+        }
+
         if (type == FieldType.Text && allowMultipleSelection)
         {
             return Result.Failure<CustomFieldDefinition>(CustomFieldErrors.MultipleSelectionRequiresDropdown);
@@ -62,11 +70,11 @@ public sealed class CustomFieldDefinition
             SortOrder = sortOrder,
             IsActive = true,
             CreatedAtUtc = utcNow,
-            CreatedBy = createdBy
+            CreatedBy = createdBy.Value
         };
     }
 
-    public Result<CustomFieldOption> AddOption(string label, int sortOrder)
+    public Result<CustomFieldOption> AddOption(string? label, int sortOrder)
     {
         if (!IsActive)
         {
@@ -78,22 +86,21 @@ public sealed class CustomFieldDefinition
             return Result.Failure<CustomFieldOption>(CustomFieldErrors.OptionsRequireDropdown);
         }
 
-        string trimmed = label.Trim();
+        Result<string> validLabel = ValidateLabel(label, optionId: null);
 
-        if (_options.Exists(o => string.Equals(o.Label, trimmed, StringComparison.OrdinalIgnoreCase)))
+        if (validLabel.IsFailure)
         {
-            return Result.Failure<CustomFieldOption>(CustomFieldErrors.DuplicateOptionLabel);
+            return Result.Failure<CustomFieldOption>(validLabel.Error);
         }
 
-        var option = CustomFieldOption.Create(trimmed, sortOrder);
+        var option = CustomFieldOption.Create(validLabel.Value, sortOrder);
 
         _options.Add(option);
 
         return option;
     }
 
-    // History keeps the label as it was when each value was set, so a rename never rewrites the past.
-    public Result RenameOption(int optionId, string label)
+    public Result RenameOption(int optionId, string? label)
     {
         if (!IsActive)
         {
@@ -107,23 +114,25 @@ public sealed class CustomFieldDefinition
             return Result.Failure(CustomFieldErrors.OptionNotFound(optionId));
         }
 
-        string trimmed = label.Trim();
+        Result<string> validLabel = ValidateLabel(label, optionId);
 
-        // The option itself may keep its label and only change the casing.
-        if (_options.Exists(o => o.Id != optionId && string.Equals(o.Label, trimmed, StringComparison.OrdinalIgnoreCase)))
+        if (validLabel.IsFailure)
         {
-            return Result.Failure(CustomFieldErrors.DuplicateOptionLabel);
+            return validLabel;
         }
 
-        option.Rename(trimmed);
+        option.Rename(validLabel.Value);
 
         return Result.Success();
     }
 
-    // Soft delete: the option stays, so existing selections and history still resolve.
-    // It can no longer be newly picked. Deactivating an inactive option changes nothing.
     public Result DeactivateOption(int optionId)
     {
+        if (!IsActive)
+        {
+            return Result.Failure(CustomFieldErrors.Inactive);
+        }
+
         CustomFieldOption? option = _options.Find(o => o.Id == optionId);
 
         if (option is null)
@@ -136,10 +145,35 @@ public sealed class CustomFieldDefinition
         return Result.Success();
     }
 
-    // Soft delete: values and history are kept and history stays readable. The field leaves customer
-    // profiles, and its values and options can no longer change. Deactivating twice changes nothing.
+    public FieldValueRules ValueRules() =>
+        new(
+            Id,
+            Type,
+            IsRequired,
+            AllowMultipleSelection,
+            IsActive,
+            [.. _options.Select(o => new FieldOptionRule(o.Id, o.Label, o.SortOrder, o.IsActive))]);
+
     public void Deactivate()
     {
         IsActive = false;
+    }
+
+    private Result<string> ValidateLabel(string? label, int? optionId)
+    {
+        if (string.IsNullOrWhiteSpace(label) || label.Trim().Length > CustomFieldOption.LabelMaxLength)
+        {
+            return Result.Failure<string>(CustomFieldErrors.OptionLabelInvalid);
+        }
+
+        string trimmed = label.Trim();
+        string key = UniqueKey.For(trimmed);
+
+        if (_options.Exists(o => o.Id != optionId && string.Equals(UniqueKey.For(o.Label), key, StringComparison.Ordinal)))
+        {
+            return Result.Failure<string>(CustomFieldErrors.DuplicateOptionLabel);
+        }
+
+        return trimmed;
     }
 }

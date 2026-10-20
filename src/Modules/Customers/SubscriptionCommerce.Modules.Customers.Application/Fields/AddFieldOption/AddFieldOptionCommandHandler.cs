@@ -12,7 +12,7 @@ internal sealed class AddFieldOptionCommandHandler(
 {
     public async Task<Result<int>> Handle(AddFieldOptionCommand command, CancellationToken cancellationToken)
     {
-        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.FieldId, cancellationToken);
+        CustomFieldDefinition? field = await fieldRepository.GetAsync(command.TenantId, command.FieldId, cancellationToken);
 
         if (field is null)
         {
@@ -30,9 +30,8 @@ internal sealed class AddFieldOptionCommandHandler(
         {
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
-        catch (ConcurrencyConflictException)
+        catch (ConcurrencyConflictException exception) when (exception.Kind == ConflictKind.DuplicateOptionLabel)
         {
-            // Another request added the same label between loading the field and this save.
             return Result.Failure<int>(CustomFieldErrors.DuplicateOptionLabel);
         }
 

@@ -1,40 +1,21 @@
 using SubscriptionCommerce.Common.Application.Messaging;
 using SubscriptionCommerce.Common.Domain;
-using SubscriptionCommerce.Modules.Customers.Domain.Customers;
-using SubscriptionCommerce.Modules.Customers.Domain.Fields;
 using SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
 namespace SubscriptionCommerce.Modules.Customers.Application.FieldValues.GetFieldValueHistory;
 
-internal sealed class GetFieldValueHistoryQueryHandler(
-    ICustomerRepository customerRepository,
-    ICustomFieldDefinitionRepository fieldRepository,
-    ICustomerFieldValueRepository valueRepository)
-    : IQueryHandler<GetFieldValueHistoryQuery, IReadOnlyList<FieldValueHistoryResponse>>
+internal sealed class GetFieldValueHistoryQueryHandler(IFieldValueHistoryReader reader)
+    : IQueryHandler<GetFieldValueHistoryQuery, FieldValueHistoryPage>
 {
-    public async Task<Result<IReadOnlyList<FieldValueHistoryResponse>>> Handle(
+    public async Task<Result<FieldValueHistoryPage>> Handle(
         GetFieldValueHistoryQuery query,
         CancellationToken cancellationToken)
     {
-        Customer? customer = await customerRepository.GetAsync(query.CustomerId, cancellationToken);
+        FieldValueHistoryPage? page = await reader.GetPageAsync(
+            query.TenantId, query.CustomerId, query.FieldId, query.After, query.Limit, cancellationToken);
 
-        if (customer is null)
-        {
-            return Result.Failure<IReadOnlyList<FieldValueHistoryResponse>>(CustomerErrors.NotFound(query.CustomerId));
-        }
-
-        CustomFieldDefinition? field = await fieldRepository.GetAsync(query.FieldId, cancellationToken);
-
-        if (field is null || field.TenantId != customer.TenantId)
-        {
-            return Result.Failure<IReadOnlyList<FieldValueHistoryResponse>>(CustomFieldErrors.NotFound(query.FieldId));
-        }
-
-        IReadOnlyList<CustomerFieldValueHistory> history =
-            await valueRepository.GetHistoryAsync(customer.Id, field.Id, cancellationToken);
-
-        return history
-            .Select(h => new FieldValueHistoryResponse(h.Id, h.OldValue, h.NewValue, h.ChangedAtUtc, h.ChangedBy))
-            .ToList();
+        return page is null
+            ? Result.Failure<FieldValueHistoryPage>(CustomerFieldValueErrors.NotFound(query.CustomerId, query.FieldId))
+            : Result.Success(page);
     }
 }

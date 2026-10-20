@@ -13,7 +13,8 @@ internal sealed class SetCustomerFieldValue : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("customers/{customerId:int}/fields/{fieldId:int}/value", async (
+        app.MapPut("tenants/{tenantId:int}/customers/{customerId:int}/fields/{fieldId:int}/value", async (
+            int tenantId,
             int customerId,
             int fieldId,
             Request request,
@@ -22,6 +23,7 @@ internal sealed class SetCustomerFieldValue : IEndpoint
         {
             Result<SetCustomerFieldValueResponse> result = await handler.Handle(
                 new SetCustomerFieldValueCommand(
+                    tenantId,
                     customerId,
                     fieldId,
                     request.TextValue,

@@ -11,21 +11,107 @@ public class CustomFieldDefinitionTests
     public void Create_Should_Fail_WhenATextFieldAllowsMultipleSelection()
     {
         Result<CustomFieldDefinition> result = CustomFieldDefinition.Create(
-            1, "Tier", FieldType.Text, allowMultipleSelection: true, isRequired: false, 0, "tester", Abstractions.Fields.UtcNow);
+            1, "Tier", FieldType.Text, allowMultipleSelection: true, isRequired: false, 0, Abstractions.Fields.Tester, Abstractions.Fields.UtcNow);
 
         result.Error.Should().Be(CustomFieldErrors.MultipleSelectionRequiresDropdown);
+    }
+
+    [Fact]
+    public void Options_Should_RefuseChanges_EvenWhenCastBackToACollection()
+    {
+        CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email");
+
+        var options = (ICollection<CustomFieldOption>)field.Options;
+
+        field.Options.Should().NotBeAssignableTo<List<CustomFieldOption>>();
+        options.Invoking(o => o.Clear()).Should().Throw<NotSupportedException>();
+        field.Options.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ValueRules_Should_HaveNoPublicConstructor_SoOnlyTheFieldCanCreateThem()
+    {
+        typeof(FieldValueRules).GetConstructors().Should().BeEmpty();
+        typeof(FieldValueRules).GetProperties().Should().OnlyContain(p => p.SetMethod == null);
+    }
+
+    [Fact]
+    public void ValueRules_Should_BeACopy_ThatLaterChangesToTheFieldDoNotAffect()
+    {
+        CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email", "Phone");
+
+        FieldValueRules rules = field.ValueRules();
+        field.RenameOption(10, "E-mail");
+        field.DeactivateOption(11);
+        field.Deactivate();
+
+        rules.IsActive.Should().BeTrue();
+        rules.Options.Should().Equal(new FieldOptionRule(10, "Email", 0, true), new FieldOptionRule(11, "Phone", 1, true));
     }
 
     [Fact]
     public void Create_Should_StartActiveAndRecordWhoCreatedIt()
     {
         CustomFieldDefinition field = CustomFieldDefinition.Create(
-            1, "  Industry ", FieldType.Dropdown, false, false, 0, "maria", Abstractions.Fields.UtcNow).Value;
+            1, "  Industry ", FieldType.Dropdown, false, false, 0, Abstractions.Fields.Maria, Abstractions.Fields.UtcNow).Value;
 
         field.Name.Should().Be("Industry");
         field.IsActive.Should().BeTrue();
         field.CreatedBy.Should().Be("maria");
         field.CreatedAtUtc.Should().Be(Abstractions.Fields.UtcNow);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public void Create_Should_Fail_WhenTheNameIsMissing(string? name)
+    {
+        Result<CustomFieldDefinition> result = CustomFieldDefinition.Create(
+            1, name, FieldType.Text, false, false, 0, Abstractions.Fields.Tester, Abstractions.Fields.UtcNow);
+
+        result.Error.Should().Be(CustomFieldErrors.NameInvalid);
+    }
+
+    [Fact]
+    public void Create_Should_Fail_WhenTheNameIsLongerThanItsColumn()
+    {
+        Result<CustomFieldDefinition> result = CustomFieldDefinition.Create(
+            1, new string('x', CustomFieldDefinition.NameMaxLength + 1), FieldType.Text, false, false, 0,
+            Abstractions.Fields.Tester, Abstractions.Fields.UtcNow);
+
+        result.Error.Should().Be(CustomFieldErrors.NameInvalid);
+    }
+
+    [Fact]
+    public void Create_Should_Fail_WhenTheTypeIsUnknown()
+    {
+        Result<CustomFieldDefinition> result = CustomFieldDefinition.Create(
+            1, "Tier", (FieldType)99, false, false, 0, Abstractions.Fields.Tester, Abstractions.Fields.UtcNow);
+
+        result.Error.Should().Be(CustomFieldErrors.UnknownType);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public void AddOption_Should_Fail_WhenTheLabelIsMissing(string? label)
+    {
+        CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email");
+
+        Result<CustomFieldOption> result = field.AddOption(label, 1);
+
+        result.Error.Should().Be(CustomFieldErrors.OptionLabelInvalid);
+    }
+
+    [Fact]
+    public void RenameOption_Should_Fail_WhenTheLabelIsLongerThanItsColumn()
+    {
+        CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email");
+
+        Result result = field.RenameOption(10, new string('x', CustomFieldOption.LabelMaxLength + 1));
+
+        result.Error.Should().Be(CustomFieldErrors.OptionLabelInvalid);
+        field.Option("Email").Id.Should().Be(10);
     }
 
     [Fact]
@@ -48,15 +134,40 @@ public class CustomFieldDefinitionTests
         result.Error.Should().Be(CustomFieldErrors.DuplicateOptionLabel);
     }
 
-    [Fact]
-    public void AddOption_Should_Fail_WhenTheFieldIsInactive()
+    [Theory]
+    [InlineData(true, OptionChange.Add)]
+    [InlineData(true, OptionChange.Rename)]
+    [InlineData(true, OptionChange.Deactivate)]
+    [InlineData(false, OptionChange.Add)]
+    [InlineData(false, OptionChange.Rename)]
+    [InlineData(false, OptionChange.Deactivate)]
+    public void OptionChanges_Should_BeAllowedOnlyWhileTheFieldIsActive(bool fieldIsActive, OptionChange change)
     {
         CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email");
-        field.Deactivate();
 
-        Result<CustomFieldOption> result = field.AddOption("Phone", 1);
+        if (!fieldIsActive)
+        {
+            field.Deactivate();
+        }
 
-        result.Error.Should().Be(CustomFieldErrors.Inactive);
+        Result result = change switch
+        {
+            OptionChange.Add => field.AddOption("Phone", 1),
+            OptionChange.Rename => field.RenameOption(10, "E-mail"),
+            OptionChange.Deactivate => field.DeactivateOption(10),
+            _ => throw new ArgumentOutOfRangeException(nameof(change), change, null)
+        };
+
+        if (fieldIsActive)
+        {
+            result.IsSuccess.Should().BeTrue();
+        }
+        else
+        {
+            result.Error.Should().Be(CustomFieldErrors.Inactive);
+            field.Options.Should().ContainSingle()
+                .Which.Should().BeEquivalentTo(new { Id = 10, Label = "Email", IsActive = true });
+        }
     }
 
     [Fact]
@@ -103,17 +214,6 @@ public class CustomFieldDefinitionTests
     }
 
     [Fact]
-    public void RenameOption_Should_Fail_WhenTheFieldIsInactive()
-    {
-        CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email");
-        field.Deactivate();
-
-        Result result = field.RenameOption(10, "E-mail");
-
-        result.Error.Should().Be(CustomFieldErrors.Inactive);
-    }
-
-    [Fact]
     public void DeactivateOption_Should_KeepTheOptionButMarkItInactive()
     {
         CustomFieldDefinition field = Abstractions.Fields.Dropdown("Email", "Phone");
@@ -149,4 +249,11 @@ public class CustomFieldDefinitionTests
         field.IsActive.Should().BeFalse();
         field.Options.Single().IsActive.Should().BeTrue();
     }
+}
+
+public enum OptionChange
+{
+    Add,
+    Rename,
+    Deactivate
 }

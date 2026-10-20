@@ -17,11 +17,12 @@ public sealed class CustomerProfileTests(IntegrationTestWebAppFactory factory) :
         int otherCustomerId = await this.CreateCustomerAsync(tenantId);
         int tier = await this.CreateFieldAsync(tenantId, FieldType.Text, name: "Tier");
         int notes = await this.CreateFieldAsync(tenantId, FieldType.Text, name: "Notes");
-        await this.CreateFieldAsync(await this.CreateTenantAsync(), FieldType.Text, name: "Other tenant's field");
-        await this.SetTextAsync(customerId, tier, "Gold", rowVersion: null);
-        await this.SetTextAsync(otherCustomerId, tier, "Silver", rowVersion: null);
+        await this.CreateFieldAsync(await this.CreateTenantAsync(), FieldType.Text, name: "Field of another tenant");
+        await this.SetTextAsync(tenantId, customerId, tier, "Gold", rowVersion: null);
+        await this.SetTextAsync(tenantId, otherCustomerId, tier, "Silver", rowVersion: null);
 
-        CustomerProfileResponse? profile = await HttpClient.GetFromJsonAsync<CustomerProfileResponse>($"customers/{customerId}/profile");
+        CustomerProfileResponse? profile = await HttpClient.GetFromJsonAsync<CustomerProfileResponse>(
+            $"tenants/{tenantId}/customers/{customerId}/profile");
 
         profile!.Fields.Select(f => f.FieldId).Should().BeEquivalentTo([tier, notes]);
         ProfileFieldResponse tierField = profile.Fields.Single(f => f.FieldId == tier);
@@ -33,7 +34,21 @@ public sealed class CustomerProfileTests(IntegrationTestWebAppFactory factory) :
     [Fact]
     public async Task Should_Return404_WhenTheCustomerDoesNotExist()
     {
-        using HttpResponseMessage response = await HttpClient.GetAsync("customers/999999/profile");
+        int tenantId = await this.CreateTenantAsync();
+
+        using HttpResponseMessage response = await HttpClient.GetAsync($"tenants/{tenantId}/customers/999999/profile");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Should_Return404_WhenTheCustomerBelongsToAnotherTenant()
+    {
+        int tenantId = await this.CreateTenantAsync();
+        int customerId = await this.CreateCustomerAsync(tenantId);
+        int otherTenantId = await this.CreateTenantAsync();
+
+        using HttpResponseMessage response = await HttpClient.GetAsync($"tenants/{otherTenantId}/customers/{customerId}/profile");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

@@ -13,13 +13,14 @@ internal sealed class GetCustomerProfile : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("customers/{customerId:int}/profile", async (
+        app.MapGet("tenants/{tenantId:int}/customers/{customerId:int}/profile", async (
+            int tenantId,
             int customerId,
             IQueryHandler<GetCustomerProfileQuery, CustomerProfileResponse> handler,
             CancellationToken cancellationToken) =>
         {
             Result<CustomerProfileResponse> result =
-                await handler.Handle(new GetCustomerProfileQuery(customerId), cancellationToken);
+                await handler.Handle(new GetCustomerProfileQuery(tenantId, customerId), cancellationToken);
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })

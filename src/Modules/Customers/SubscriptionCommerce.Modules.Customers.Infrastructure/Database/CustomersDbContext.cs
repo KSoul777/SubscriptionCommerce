@@ -15,6 +15,14 @@ namespace SubscriptionCommerce.Modules.Customers.Infrastructure.Database;
 
 public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> options) : DbContext(options), IUnitOfWork
 {
+    private static readonly Dictionary<string, ConflictKind> UniqueIndexes = new(StringComparer.Ordinal)
+    {
+        [CustomFieldDefinitionConfiguration.UniqueNameIndex] = ConflictKind.DuplicateFieldName,
+        [CustomFieldOptionConfiguration.UniqueLabelIndex] = ConflictKind.DuplicateOptionLabel,
+        [CustomerFieldValueConfiguration.OneValuePerFieldIndex] = ConflictKind.DuplicateFieldValue,
+        [CustomerFieldValueOptionConfiguration.PrimaryKey] = ConflictKind.DuplicateSelectedOption
+    };
+
     internal DbSet<Tenant> Tenants => Set<Tenant>();
 
     internal DbSet<Customer> Customers => Set<Customer>();
@@ -35,13 +43,27 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         }
         catch (DbUpdateConcurrencyException exception)
         {
-            throw new ConcurrencyConflictException("A row was changed by another request", exception);
+            throw new ConcurrencyConflictException(ConflictKind.RowVersion, "A row was changed by another request", exception);
         }
-        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 } sqlException &&
+            UniqueKeyConflict(sqlException.Message) is { } kind)
         {
-            // 2601/2627: unique index or unique constraint violation.
-            throw new ConcurrencyConflictException("A unique key was taken by another request", exception);
+            throw new ConcurrencyConflictException(kind, "A unique key was taken by another request", exception);
         }
+    }
+
+    internal static ConflictKind? UniqueKeyConflict(string sqlErrorMessage)
+    {
+        foreach ((string index, ConflictKind kind) in UniqueIndexes)
+        {
+            if (sqlErrorMessage.Contains($"'{index}'", StringComparison.Ordinal))
+            {
+                return kind;
+            }
+        }
+
+        return null;
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -62,14 +84,11 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         modelBuilder.ApplyConfiguration(new CustomerFieldValueHistoryConfiguration());
     }
 
-    // A change can touch only the selected options (a child table) and leave the value row's own columns
-    // as they were, for example two changes in the same clock tick. Marking the row modified makes EF update
-    // it anyway, so every change runs the rowversion check and moves the row version on.
     private void MarkValuesWithNewHistoryAsModified()
     {
         IEnumerable<EntityEntry<CustomerFieldValue>> touchedValues = ChangeTracker
             .Entries<CustomerFieldValue>()
-            .Where(e => e.State == EntityState.Unchanged && e.Entity.History.Any(h => h.Id == 0));
+            .Where(e => e.State == EntityState.Unchanged && e.Entity.PendingHistory.Any(h => h.Id == 0));
 
         foreach (EntityEntry<CustomerFieldValue> entry in touchedValues)
         {

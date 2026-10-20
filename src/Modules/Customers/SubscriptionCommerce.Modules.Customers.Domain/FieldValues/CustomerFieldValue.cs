@@ -1,17 +1,18 @@
 using SubscriptionCommerce.Common.Domain;
+using SubscriptionCommerce.Modules.Customers.Domain.Customers;
 using SubscriptionCommerce.Modules.Customers.Domain.Fields;
+using SubscriptionCommerce.Modules.Customers.Domain.Users;
 
 namespace SubscriptionCommerce.Modules.Customers.Domain.FieldValues;
 
-// The value of one custom field for one customer, and its history.
-// History is part of this aggregate on purpose: a change and its history entry are saved together,
-// in one SaveChanges, so there is never a value without its transition or a transition without its value.
 public sealed class CustomerFieldValue
 {
     public const int TextMaxLength = 2000;
 
     private readonly List<CustomerFieldValueOption> _selectedOptions = [];
-    private readonly List<CustomerFieldValueHistory> _history = [];
+    private readonly List<CustomerFieldValueHistory> _pendingHistory = [];
+
+    private bool _isNew;
 
     private CustomerFieldValue()
     {
@@ -19,47 +20,50 @@ public sealed class CustomerFieldValue
 
     public int Id { get; private set; }
 
+    public int TenantId { get; private set; }
+
     public int CustomerId { get; private set; }
 
     public int FieldDefinitionId { get; private set; }
 
-    // Text fields only; null for dropdowns.
     public string? TextValue { get; private set; }
 
     public DateTime UpdatedAtUtc { get; private set; }
 
     public string UpdatedBy { get; private set; } = null!;
 
-    // SQL Server rowversion. A stale value makes the save fail, which keeps history transitions consecutive.
     public byte[] RowVersion { get; private set; } = [];
 
-    public IReadOnlyCollection<CustomerFieldValueOption> SelectedOptions => _selectedOptions;
+    public IReadOnlyCollection<CustomerFieldValueOption> SelectedOptions => _selectedOptions.AsReadOnly();
 
-    // Only the entries added since the value was loaded: history is never loaded with the value.
-    public IReadOnlyCollection<CustomerFieldValueHistory> History => _history;
+    public IReadOnlyCollection<CustomerFieldValueHistory> PendingHistory => _pendingHistory.AsReadOnly();
 
-    // Not saved yet: the database assigns the Id.
-    private bool IsNew => Id == 0;
-
-    // An empty value that is not saved until the first change.
-    public static CustomerFieldValue Create(int customerId, CustomFieldDefinition field) =>
-        new()
+    public static CustomerFieldValue Create(Customer customer, CustomFieldDefinition field)
+    {
+        if (customer.TenantId != field.TenantId)
         {
-            CustomerId = customerId,
-            FieldDefinitionId = field.Id
-        };
+            throw new ArgumentException("The customer and the field belong to different tenants", nameof(field));
+        }
 
-    // Returns false, and changes nothing, when the requested value equals the current one.
+        return new CustomerFieldValue
+        {
+            TenantId = customer.TenantId,
+            CustomerId = customer.Id,
+            FieldDefinitionId = field.Id,
+            _isNew = true
+        };
+    }
+
     public Result<bool> Change(
-        CustomFieldDefinition field,
+        FieldValueRules field,
         string? text,
         IReadOnlyCollection<int> optionIds,
-        string changedBy,
+        UserName changedBy,
         DateTime utcNow)
     {
-        if (field.Id != FieldDefinitionId)
+        if (field.FieldDefinitionId != FieldDefinitionId)
         {
-            throw new ArgumentException("The field definition does not belong to this value", nameof(field));
+            throw new ArgumentException("The field rules do not belong to this value", nameof(field));
         }
 
         if (!field.IsActive)
@@ -86,10 +90,8 @@ public sealed class CustomerFieldValue
 
         var fieldOptions = field.Options.ToDictionary(o => o.Id);
 
-        // The option must belong to the field. A newly picked option must also be active, but one that
-        // stays selected may have been deactivated since it was picked.
         bool CanBeSelected(int optionId) =>
-            fieldOptions.TryGetValue(optionId, out CustomFieldOption? option) &&
+            fieldOptions.TryGetValue(optionId, out FieldOptionRule? option) &&
             (option.IsActive || currentOptionIds.Contains(optionId));
 
         if (!newOptionIds.All(CanBeSelected))
@@ -97,24 +99,30 @@ public sealed class CustomerFieldValue
             return Result.Failure<bool>(CustomerFieldValueErrors.InvalidOption);
         }
 
-        FieldValueSnapshot? oldValue = IsNew ? null : Snapshot(TextValue, currentOptionIds, fieldOptions);
+        FieldValueSnapshot? oldValue = _isNew ? null : Snapshot(TextValue, currentOptionIds, fieldOptions);
         FieldValueSnapshot newValue = Snapshot(newText, newOptionIds, fieldOptions);
 
         TextValue = newText;
         _selectedOptions.RemoveAll(o => !newOptionIds.Contains(o.OptionId));
         _selectedOptions.AddRange(newOptionIds
             .Where(id => !currentOptionIds.Contains(id))
-            .Select(CustomerFieldValueOption.Create));
+            .Select(optionId => CustomerFieldValueOption.Create(FieldDefinitionId, optionId)));
         UpdatedAtUtc = utcNow;
-        UpdatedBy = changedBy;
+        UpdatedBy = changedBy.Value;
+        _isNew = false;
 
-        _history.Add(CustomerFieldValueHistory.Create(oldValue, newValue, changedBy, utcNow));
+        _pendingHistory.Add(CustomerFieldValueHistory.Create(oldValue, newValue, changedBy.Value, utcNow));
 
         return true;
     }
 
-    private static Result ValidateShape(CustomFieldDefinition field, string? text, int[] optionIds)
+    private static Result ValidateShape(FieldValueRules field, string? text, int[] optionIds)
     {
+        if (text?.Length > TextMaxLength)
+        {
+            return Result.Failure(CustomerFieldValueErrors.TextTooLong);
+        }
+
         if (field.Type == FieldType.Text && optionIds.Length > 0)
         {
             return Result.Failure(CustomerFieldValueErrors.OptionsNotAllowed);
@@ -141,7 +149,7 @@ public sealed class CustomerFieldValue
     private static FieldValueSnapshot Snapshot(
         string? text,
         IEnumerable<int> optionIds,
-        Dictionary<int, CustomFieldOption> fieldOptions) =>
+        Dictionary<int, FieldOptionRule> fieldOptions) =>
         new(
             text,
             optionIds
@@ -149,5 +157,6 @@ public sealed class CustomerFieldValue
                 .OrderBy(o => o.SortOrder)
                 .ThenBy(o => o.Id)
                 .Select(o => new SnapshotOption(o.Id, o.Label))
-                .ToList());
+                .ToList()
+                .AsReadOnly());
 }

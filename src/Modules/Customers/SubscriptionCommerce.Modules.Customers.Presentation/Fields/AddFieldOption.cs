@@ -13,14 +13,15 @@ internal sealed class AddFieldOption : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("fields/{fieldId:int}/options", async (
+        app.MapPost("tenants/{tenantId:int}/fields/{fieldId:int}/options", async (
+            int tenantId,
             int fieldId,
             Request request,
             ICommandHandler<AddFieldOptionCommand, int> handler,
             CancellationToken cancellationToken) =>
         {
             Result<int> result = await handler.Handle(
-                new AddFieldOptionCommand(fieldId, request.Label, request.SortOrder),
+                new AddFieldOptionCommand(tenantId, fieldId, request.Label, request.SortOrder),
                 cancellationToken);
 
             return result.Match(Results.Ok, ApiResults.Problem);

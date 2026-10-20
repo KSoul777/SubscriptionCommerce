@@ -23,11 +23,6 @@ public static class ApplicationConfiguration
                 .AsImplementedInterfaces()
                 .WithScopedLifetime());
 
-        // TryDecorate: a module set may not use every handler shape (for example no command without a response).
-        // Decorators run in reverse order of registration
-        // Register: Validation -> Logging -> ExceptionHandling
-        // Runtime: ExceptionHandling -> Logging -> Validation
-
         services.TryDecorate(typeof(ICommandHandler<,>), typeof(ValidationDecorator.CommandHandlerT<,>));
         services.TryDecorate(typeof(ICommandHandler<>), typeof(ValidationDecorator.CommandHandler<>));
         services.TryDecorate(typeof(IQueryHandler<,>), typeof(ValidationDecorator.QueryHandler<,>));

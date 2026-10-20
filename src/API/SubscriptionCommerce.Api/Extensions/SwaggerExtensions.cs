@@ -15,7 +15,6 @@ internal static class SwaggerExtensions
                 Description = "Discount calculation (Pricing) and dynamic customer fields (Customers)."
             });
 
-            // Every endpoint has a nested Request class; full names keep the schema ids unique.
             options.CustomSchemaIds(t => t.FullName?.Replace("+", ".", StringComparison.Ordinal));
         });
 

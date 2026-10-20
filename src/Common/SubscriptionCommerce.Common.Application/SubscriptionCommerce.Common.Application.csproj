@@ -11,4 +11,8 @@
     <ProjectReference Include="..\SubscriptionCommerce.Common.Domain\SubscriptionCommerce.Common.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SubscriptionCommerce.Common.UnitTests" />
+  </ItemGroup>
+
 </Project>

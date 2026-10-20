@@ -19,6 +19,10 @@ internal static class ExceptionHandlingDecorator
             {
                 return await innerHandler.Handle(command, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Unhandled exception for {CommandName}", typeof(TCommand).Name);
@@ -40,6 +44,10 @@ internal static class ExceptionHandlingDecorator
             {
                 return await innerHandler.Handle(command, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Unhandled exception for {RequestName}", typeof(TCommand).Name);
@@ -60,6 +68,10 @@ internal static class ExceptionHandlingDecorator
             try
             {
                 return await innerHandler.Handle(query, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception exception)
             {

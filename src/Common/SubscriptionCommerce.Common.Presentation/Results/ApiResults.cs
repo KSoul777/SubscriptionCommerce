@@ -9,7 +9,7 @@ public static class ApiResults
     {
         if (result.IsSuccess)
         {
-            throw new InvalidOperationException();
+            throw new InvalidOperationException("A problem response can't be created from a successful result.");
         }
 
         return Microsoft.AspNetCore.Http.Results.Problem(

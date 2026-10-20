@@ -45,8 +45,6 @@ internal static class ValidationDecorator
         }
     }
 
-    // Evently validates commands only. The discount calculation is a query with user input,
-    // so queries get the same validation step.
     internal sealed class QueryHandler<TQuery, TResponse>(
         IQueryHandler<TQuery, TResponse> innerHandler,
         IEnumerable<IValidator<TQuery>> validators)
@@ -71,24 +69,16 @@ internal static class ValidationDecorator
         IEnumerable<IValidator<TRequest>> validators,
         CancellationToken cancellationToken)
     {
-        IValidator<TRequest>[] validatorArray = validators.ToArray();
+        var validationFailures = new List<ValidationFailure>();
 
-        if (validatorArray.Length == 0)
+        foreach (IValidator<TRequest> validator in validators)
         {
-            return [];
+            ValidationResult validationResult = await validator.ValidateAsync(request, cancellationToken);
+
+            validationFailures.AddRange(validationResult.Errors);
         }
 
-        var context = new ValidationContext<TRequest>(request);
-
-        ValidationResult[] validationResults = await Task.WhenAll(
-            validatorArray.Select(validator => validator.ValidateAsync(context, cancellationToken)));
-
-        ValidationFailure[] validationFailures = validationResults
-            .Where(validationResult => !validationResult.IsValid)
-            .SelectMany(validationResult => validationResult.Errors)
-            .ToArray();
-
-        return validationFailures;
+        return validationFailures.ToArray();
     }
 
     private static ValidationError CreateValidationError(ValidationFailure[] validationFailures) =>

@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SubscriptionCommerce.Common.Infrastructure\SubscriptionCommerce.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\SubscriptionCommerce.Common.Presentation\SubscriptionCommerce.Common.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

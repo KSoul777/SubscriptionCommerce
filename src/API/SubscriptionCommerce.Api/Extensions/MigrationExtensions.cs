@@ -6,7 +6,6 @@ namespace SubscriptionCommerce.Api.Extensions;
 
 internal static class MigrationExtensions
 {
-    // Development only: production would run migrations as a deployment step, not on application start.
     public static void ApplyMigrations(this IApplicationBuilder app)
     {
         using IServiceScope scope = app.ApplicationServices.CreateScope();

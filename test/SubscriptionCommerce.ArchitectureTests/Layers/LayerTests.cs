@@ -4,8 +4,6 @@ using SubscriptionCommerce.ArchitectureTests.Abstractions;
 
 namespace SubscriptionCommerce.ArchitectureTests.Layers;
 
-// Inside a module, dependencies point inward: Presentation -> Application -> Domain,
-// and Infrastructure is the only layer that knows about EF Core and SQL Server.
 public class LayerTests : BaseTest
 {
     private const string EntityFrameworkCore = "Microsoft.EntityFrameworkCore";
@@ -45,6 +43,19 @@ public class LayerTests : BaseTest
         Types.InAssembly(assemblies.Presentation)
             .Should()
             .NotHaveDependencyOn(assemblies.Infrastructure.GetName().Name)
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Theory]
+    [MemberData(nameof(ModuleNames))]
+    public void InfrastructureLayer_Should_NotHaveDependencyOn_Presentation(string module)
+    {
+        ModuleAssemblies assemblies = Module(module);
+
+        Types.InAssembly(assemblies.Infrastructure)
+            .Should()
+            .NotHaveDependencyOn(assemblies.Presentation.GetName().Name)
             .GetResult()
             .ShouldBeSuccessful();
     }

@@ -3,8 +3,6 @@ using SubscriptionCommerce.ArchitectureTests.Abstractions;
 
 namespace SubscriptionCommerce.ArchitectureTests.Boundaries;
 
-// Modules never reference each other. If one ever needs the other's data, it goes through a public
-// contract project or an integration event (see the README), and these tests change on purpose.
 public class ModuleTests : BaseTest
 {
     [Fact]

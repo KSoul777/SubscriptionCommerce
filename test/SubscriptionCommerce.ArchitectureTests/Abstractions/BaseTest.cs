@@ -36,7 +36,6 @@ public abstract class BaseTest
         Modules.Customers.Presentation.AssemblyReference.Assembly,
         typeof(CustomersModule).Assembly);
 
-    // Theory data is the module name, so xUnit can show one test case per module.
     public static TheoryData<string> ModuleNames => ["Pricing", "Customers"];
 
     protected static ModuleAssemblies Module(string name) => name switch

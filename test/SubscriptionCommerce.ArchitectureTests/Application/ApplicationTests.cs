@@ -5,8 +5,6 @@ using SubscriptionCommerce.Common.Application.Messaging;
 
 namespace SubscriptionCommerce.ArchitectureTests.Application;
 
-// Naming and visibility conventions from evently: requests are public sealed records,
-// handlers and validators are internal sealed classes found by assembly scanning.
 public class ApplicationTests : BaseTest
 {
     [Theory]

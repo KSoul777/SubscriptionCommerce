@@ -28,6 +28,10 @@ public static class DiscountErrors
         "Discounts.AmountNotPositive",
         "A fixed amount discount must be greater than 0");
 
+    public static readonly Error TooManyDecimals = Error.Problem(
+        "Discounts.TooManyDecimals",
+        $"A discount value can have at most {Currency.DecimalPlaces} decimal places");
+
     public static readonly Error NegativePrice = Error.Problem(
         "Discounts.NegativePrice",
         "The price to discount can't be negative");

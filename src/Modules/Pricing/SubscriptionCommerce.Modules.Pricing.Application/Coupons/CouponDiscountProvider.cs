@@ -1,11 +1,10 @@
 using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Pricing.Application.Discounts;
+using SubscriptionCommerce.Modules.Pricing.Domain.Coupons;
 using SubscriptionCommerce.Modules.Pricing.Domain.Discounts;
 
 namespace SubscriptionCommerce.Modules.Pricing.Application.Coupons;
 
-// Eligible: the customer entered the code, the coupon is active and it has not expired.
-// Unknown or invalid codes are skipped, not reported as errors.
 internal sealed class CouponDiscountProvider(ICouponReader reader, TimeProvider timeProvider) : IDiscountProvider
 {
     internal const string Source = "Coupon";
@@ -21,24 +20,20 @@ internal sealed class CouponDiscountProvider(ICouponReader reader, TimeProvider 
             return Array.Empty<Discount>();
         }
 
-        IReadOnlyList<CouponRecord> records = await reader.GetByCodesAsync(order.CouponCodes, cancellationToken);
-
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
 
-        IEnumerable<CouponRecord> eligible = records
-            .Where(r => r.IsActive && (r.ExpiresAtUtc is null || utcNow < r.ExpiresAtUtc))
-            .OrderBy(r => r.Id);
+        IReadOnlyList<Coupon> coupons = await reader.GetActiveUnexpiredByCodesAsync(order.CouponCodes, utcNow, cancellationToken);
 
         var discounts = new List<Discount>();
 
-        foreach (CouponRecord record in eligible)
+        foreach (Coupon coupon in coupons.Where(c => c.IsRedeemableAt(utcNow)).OrderBy(c => c.Id))
         {
-            Result<Discount> discount = Discount.Create(record.Name, Source, record.Type, record.Value, record.Currency);
+            Result<Discount> discount = Discount.Create(coupon.Name, Source, coupon.Type, coupon.Value, coupon.Currency);
 
             if (discount.IsFailure)
             {
                 return Result.Failure<IReadOnlyList<Discount>>(
-                    PricingErrors.InvalidStoredDiscount(Source, record.Id, discount.Error));
+                    PricingErrors.InvalidStoredDiscount(Source, coupon.Id, discount.Error));
             }
 
             discounts.Add(discount.Value);

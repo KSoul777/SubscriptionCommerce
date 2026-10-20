@@ -12,7 +12,7 @@ using SubscriptionCommerce.Modules.Pricing.Infrastructure.Database;
 namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(PricingDbContext))]
-    [Migration("20261016101910_Create_Database")]
+    [Migration("20261020134500_Create_Database")]
     partial class Create_Database
     {
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.Coupons.Coupon", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.Coupons.Coupon", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -84,7 +84,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
                         });
                 });
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.PriceLists.PriceListDiscount", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.PriceLists.PriceListDiscount", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -135,7 +135,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
                         });
                 });
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.Promotions.Promotion", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.Promotions.Promotion", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

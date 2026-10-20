@@ -10,18 +10,15 @@ public class DiscountBreakdownTests
     [Fact]
     public void Apply_Should_MatchTheBriefExample()
     {
-        // Arrange: 340 EUR, price list 5%, promotion 10%, coupon -10 EUR.
-        Discount[] discounts =
+        PrioritizedDiscounts[] sources =
         [
-            Percentage("Price list", 5m),
-            Percentage("Promotion", 10m),
-            FixedAmount("Coupon", 10m)
+            new(100, [Percentage("Price list", 5m)]),
+            new(200, [Percentage("Promotion", 10m)]),
+            new(300, [FixedAmount("Coupon", 10m)])
         ];
 
-        // Act
-        Result<DiscountBreakdown> result = DiscountBreakdown.Apply(Eur(340m), discounts);
+        Result<DiscountBreakdown> result = DiscountBreakdown.Apply(Eur(340m), sources);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Lines.Select(l => l.Deducted.Amount).Should().Equal(17.00m, 32.30m, 10.00m);
         result.Value.Lines.Select(l => l.PriceAfter.Amount).Should().Equal(323.00m, 290.70m, 280.70m);
@@ -30,13 +27,52 @@ public class DiscountBreakdownTests
     }
 
     [Fact]
+    public void Apply_Should_ApplySourcesInPriorityOrder_WhateverOrderTheyArriveIn()
+    {
+        PrioritizedDiscounts[] sources =
+        [
+            new(300, [FixedAmount("Coupon", 10m)]),
+            new(100, [Percentage("Price list", 5m)]),
+            new(200, [Percentage("Promotion B", 10m), Percentage("Promotion A", 20m)])
+        ];
+
+        Result<DiscountBreakdown> result = DiscountBreakdown.Apply(Eur(340m), sources);
+
+        result.Value.Lines.Select(l => l.Name).Should().Equal("Price list", "Promotion B", "Promotion A", "Coupon");
+    }
+
+    [Fact]
+    public void Apply_Should_KeepTheOrderWithinASource_BecauseItChangesThePrice()
+    {
+        Result<DiscountBreakdown> percentFirst = DiscountBreakdown.Apply(
+            Eur(100m), OneSource(Percentage("Ten percent", 10m), FixedAmount("Ten off", 10m)));
+        Result<DiscountBreakdown> fixedFirst = DiscountBreakdown.Apply(
+            Eur(100m), OneSource(FixedAmount("Ten off", 10m), Percentage("Ten percent", 10m)));
+
+        percentFirst.Value.FinalPrice.Should().Be(Eur(80.00m));
+        fixedFirst.Value.FinalPrice.Should().Be(Eur(81.00m));
+    }
+
+    [Fact]
+    public void Lines_Should_RefuseChanges_EvenWhenCastBackToAList()
+    {
+        DiscountBreakdown breakdown = DiscountBreakdown.Apply(Eur(100m), OneSource(Percentage("Ten percent", 10m))).Value;
+
+        var lines = (IList<DiscountLine>)breakdown.Lines;
+
+        breakdown.Lines.Should().NotBeAssignableTo<List<DiscountLine>>();
+        lines.Invoking(l => l.Clear()).Should().Throw<NotSupportedException>();
+        breakdown.Lines.Should().ContainSingle();
+        breakdown.FinalPrice.Should().Be(Eur(90m));
+    }
+
+    [Fact]
     public void Apply_Should_ApplyEachDiscountToTheRunningPrice()
     {
         Result<DiscountBreakdown> result = DiscountBreakdown.Apply(
             Eur(100m),
-            [Percentage("First", 50m), Percentage("Second", 50m)]);
+            OneSource(Percentage("First", 50m), Percentage("Second", 50m)));
 
-        // 50% of 100, then 50% of the remaining 50; not 50% of 100 twice.
         result.Value.Lines[1].PriceBefore.Should().Be(Eur(50m));
         result.Value.FinalPrice.Should().Be(Eur(25m));
     }
@@ -46,7 +82,7 @@ public class DiscountBreakdownTests
     {
         Result<DiscountBreakdown> result = DiscountBreakdown.Apply(
             Eur(15m),
-            [FixedAmount("Large coupon", 500m)]);
+            OneSource(FixedAmount("Large coupon", 500m)));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Lines.Single().Deducted.Should().Be(Eur(15m));
@@ -56,8 +92,7 @@ public class DiscountBreakdownTests
     [Fact]
     public void Apply_Should_RoundEachLineToCentsAwayFromZero()
     {
-        // 10% of 0.25 is 0.025: away-from-zero gives 0.03 (banker's rounding would give 0.02).
-        Result<DiscountBreakdown> result = DiscountBreakdown.Apply(Eur(0.25m), [Percentage("Ten percent", 10m)]);
+        Result<DiscountBreakdown> result = DiscountBreakdown.Apply(Eur(0.25m), OneSource(Percentage("Ten percent", 10m)));
 
         result.Value.Lines.Single().Deducted.Should().Be(Eur(0.03m));
         result.Value.FinalPrice.Should().Be(Eur(0.22m));
@@ -68,7 +103,7 @@ public class DiscountBreakdownTests
     {
         Result<DiscountBreakdown> result = DiscountBreakdown.Apply(
             Eur(100m),
-            [FixedAmount("Dollar coupon", 10m, "USD")]);
+            OneSource(FixedAmount("Dollar coupon", 10m, "USD")));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(MoneyErrors.CurrencyMismatch);

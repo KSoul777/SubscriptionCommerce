@@ -37,6 +37,10 @@ builder.Services.AddPricingModule(builder.Configuration);
 
 builder.Services.AddCustomersModule(builder.Configuration);
 
+builder.Services.AddEndpoints(
+    SubscriptionCommerce.Modules.Pricing.Presentation.AssemblyReference.Assembly,
+    SubscriptionCommerce.Modules.Customers.Presentation.AssemblyReference.Assembly);
+
 WebApplication app = builder.Build();
 
 if (app.Environment.IsDevelopment())

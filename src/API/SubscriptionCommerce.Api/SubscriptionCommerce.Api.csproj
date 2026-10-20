@@ -20,7 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Modules\Customers\SubscriptionCommerce.Modules.Customers.Infrastructure\SubscriptionCommerce.Modules.Customers.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Customers\SubscriptionCommerce.Modules.Customers.Presentation\SubscriptionCommerce.Modules.Customers.Presentation.csproj" />
     <ProjectReference Include="..\..\Modules\Pricing\SubscriptionCommerce.Modules.Pricing.Infrastructure\SubscriptionCommerce.Modules.Pricing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Pricing\SubscriptionCommerce.Modules.Pricing.Presentation\SubscriptionCommerce.Modules.Pricing.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

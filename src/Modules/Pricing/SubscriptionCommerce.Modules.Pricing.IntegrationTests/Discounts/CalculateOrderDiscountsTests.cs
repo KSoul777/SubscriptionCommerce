@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
-using Microsoft.AspNetCore.Mvc;
-using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Pricing.Application.Discounts.CalculateOrderDiscounts;
 using SubscriptionCommerce.Modules.Pricing.IntegrationTests.Abstractions;
 
@@ -14,10 +12,11 @@ public sealed class CalculateOrderDiscountsTests(IntegrationTestWebAppFactory fa
 
     private static readonly string[] Welcome10 = ["WELCOME10"];
 
+    private static readonly string[] Yen500 = ["YEN500"];
+
     [Fact]
     public async Task Should_ApplyTheBriefsExample_ToTheSeededCustomer()
     {
-        // The migration seeds customer 1 with a 5% price list, a 10% promotion and coupon WELCOME10 (-10 EUR).
         DiscountBreakdownResponse breakdown = await CalculateAsync(customerId: 1, "welcome10");
 
         breakdown.Discounts.Select(d => (d.Source, d.Rule, d.PriceBefore, d.Deducted, d.PriceAfter)).Should().Equal(
@@ -75,14 +74,71 @@ public sealed class CalculateOrderDiscountsTests(IntegrationTestWebAppFactory fa
     }
 
     [Fact]
-    public async Task Should_Return400ProblemDetails_WhenACouponIsInAnotherCurrency()
+    public async Task Should_SkipACouponInAnotherCurrency_AndStillPriceTheOrder()
     {
         using HttpResponseMessage response = await HttpClient.PostAsJsonAsync(
             "orders/discounts",
             new { customerId = 1005, price = 340m, currency = "USD", couponCodes = Welcome10 });
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        ProblemDetails? problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        problem!.Title.Should().Be(MoneyErrors.CurrencyMismatch.Code);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        DiscountBreakdownResponse? breakdown = await response.Content.ReadFromJsonAsync<DiscountBreakdownResponse>();
+        breakdown!.Discounts.Select(d => d.Source).Should().NotContain("Coupon");
+        breakdown.FinalPrice.Should().Be(306.00m);
+    }
+
+    [Fact]
+    public async Task Should_Return500_WhenAnEnteredCouponIsStoredInAnUnsupportedCurrency()
+    {
+        await ExecuteSqlAsync($"""
+            INSERT INTO pricing.Coupons (Code, Name, Type, Value, Currency, ExpiresAtUtc, IsActive)
+            VALUES ('YEN500', 'Yen coupon', 'FixedAmount', 500, 'JPY', NULL, 1)
+            """);
+
+        using HttpResponseMessage response = await HttpClient.PostAsJsonAsync(
+            "orders/discounts",
+            new { customerId = 1006, price = 340m, currency = "EUR", couponCodes = Yen500 });
+
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+    }
+
+    [Fact]
+    public async Task Should_IgnoreAnInactivePriceListRow_StoredInAnUnsupportedCurrency()
+    {
+        await ExecuteSqlAsync($"""
+            INSERT INTO pricing.PriceListDiscounts (CustomerId, Name, Type, Value, Currency, IsActive)
+            VALUES (1007, 'Old yen price list', 'FixedAmount', 500, 'JPY', 0),
+                   (1007, 'Bronze price list', 'Percentage', 2, NULL, 1)
+            """);
+
+        DiscountBreakdownResponse breakdown = await CalculateAsync(customerId: 1007);
+
+        breakdown.Discounts.Where(d => d.Source == "PriceList").Select(d => d.Name).Should().Equal("Bronze price list");
+    }
+
+    [Fact]
+    public async Task Should_IgnoreAnExpiredCoupon_StoredInAnUnsupportedCurrency()
+    {
+        await ExecuteSqlAsync($"""
+            INSERT INTO pricing.Coupons (Code, Name, Type, Value, Currency, ExpiresAtUtc, IsActive)
+            VALUES ('OLDYEN', 'Expired yen coupon', 'FixedAmount', 500, 'JPY', {UtcNow.AddDays(-1)}, 1)
+            """);
+
+        DiscountBreakdownResponse breakdown = await CalculateAsync(customerId: 1008, "OLDYEN");
+
+        breakdown.Discounts.Should().NotContain(d => d.Source == "Coupon");
+    }
+
+    [Fact]
+    public async Task Should_KeepPricingOrders_WhenAPromotionCanNeverApply()
+    {
+        await ExecuteSqlAsync($"""
+            INSERT INTO pricing.Promotions (Name, Type, Value, Currency, StartsAtUtc, EndsAtUtc, IsActive)
+            VALUES ('Backwards promotion', 'Percentage', 20, NULL, {UtcNow.AddDays(2)}, {UtcNow.AddDays(1)}, 1),
+                   ('Ended yen promotion', 'FixedAmount', 500, 'JPY', {UtcNow.AddDays(-10)}, {UtcNow.AddDays(-1)}, 1)
+            """);
+
+        DiscountBreakdownResponse breakdown = await CalculateAsync(customerId: 1009);
+
+        breakdown.Discounts.Where(d => d.Source == "Promotion").Select(d => d.Name).Should().Equal("Autumn promotion");
     }
 }

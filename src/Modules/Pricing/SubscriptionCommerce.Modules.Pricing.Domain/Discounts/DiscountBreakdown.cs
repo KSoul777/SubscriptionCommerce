@@ -11,14 +11,12 @@ public sealed record DiscountLine(
     Money Deducted,
     Money PriceAfter);
 
-// Applies discounts, already in priority order, to a running price.
-// Each discount works on the price left by the previous one, not on the original price.
 public sealed class DiscountBreakdown
 {
-    private DiscountBreakdown(Money originalPrice, IReadOnlyList<DiscountLine> lines, Money finalPrice)
+    private DiscountBreakdown(Money originalPrice, List<DiscountLine> lines, Money finalPrice)
     {
         OriginalPrice = originalPrice;
-        Lines = lines;
+        Lines = lines.AsReadOnly();
         FinalPrice = finalPrice;
     }
 
@@ -30,7 +28,7 @@ public sealed class DiscountBreakdown
 
     public Money TotalDiscount => (OriginalPrice - FinalPrice).Value;
 
-    public static Result<DiscountBreakdown> Apply(Money originalPrice, IEnumerable<Discount> discountsInPriorityOrder)
+    public static Result<DiscountBreakdown> Apply(Money originalPrice, IEnumerable<PrioritizedDiscounts> sources)
     {
         if (originalPrice.Amount < 0m)
         {
@@ -40,7 +38,7 @@ public sealed class DiscountBreakdown
         var lines = new List<DiscountLine>();
         Money runningPrice = originalPrice;
 
-        foreach (Discount discount in discountsInPriorityOrder)
+        foreach (Discount discount in sources.OrderBy(s => s.Priority).SelectMany(s => s.Discounts))
         {
             Result<Money> deduction = discount.CalculateDeduction(runningPrice);
 

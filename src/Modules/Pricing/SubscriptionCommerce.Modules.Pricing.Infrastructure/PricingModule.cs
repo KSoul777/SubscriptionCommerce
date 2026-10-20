@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SubscriptionCommerce.Common.Infrastructure.Configuration;
-using SubscriptionCommerce.Common.Presentation.Endpoints;
 using SubscriptionCommerce.Modules.Pricing.Application.Coupons;
 using SubscriptionCommerce.Modules.Pricing.Application.Discounts;
 using SubscriptionCommerce.Modules.Pricing.Application.PriceLists;
@@ -25,7 +24,7 @@ public static class PricingModule
 
         services.AddDiscountProviders();
 
-        services.AddEndpoints(Presentation.AssemblyReference.Assembly);
+        services.AddHostedService<DiscountProviderPriorityCheck>();
 
         return services;
     }
@@ -42,7 +41,6 @@ public static class PricingModule
         services.AddScoped<ICouponReader, CouponReader>();
     }
 
-    // Every IDiscountProvider in the Application assembly is picked up, so a new source needs no registration code.
     private static void AddDiscountProviders(this IServiceCollection services) =>
         services.Scan(scan => scan.FromAssemblies(Application.AssemblyReference.Assembly)
             .AddClasses(classes => classes.AssignableTo<IDiscountProvider>(), publicOnly: false)

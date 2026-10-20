@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Pricing.Domain.Discounts;
+using SubscriptionCommerce.Modules.Pricing.Domain.Promotions;
+using SubscriptionCommerce.Modules.Pricing.Infrastructure.Database;
 
 namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Promotions;
 
@@ -11,11 +14,10 @@ internal sealed class PromotionConfiguration : IEntityTypeConfiguration<Promotio
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Name).HasMaxLength(Discount.NameMaxLength);
         builder.Property(p => p.Type).HasConversion<string>().HasMaxLength(20);
-        builder.Property(p => p.Value).HasPrecision(18, 2);
-        builder.Property(p => p.Currency).HasMaxLength(3).IsFixedLength();
+        builder.Property(p => p.Value).HasPrecision(18, Currency.DecimalPlaces);
+        builder.Property(p => p.Currency).HasConversion<CurrencyConverter>().HasMaxLength(3).IsFixedLength();
 
-        // Example data from the brief: a 10% promotion, open long enough to stay valid while the assignment is reviewed.
-        builder.HasData(new Promotion
+        builder.HasData(new
         {
             Id = 1,
             Name = "Autumn promotion",

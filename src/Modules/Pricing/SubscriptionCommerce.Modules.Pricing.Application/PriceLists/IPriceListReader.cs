@@ -1,16 +1,8 @@
-using SubscriptionCommerce.Modules.Pricing.Domain.Discounts;
+using SubscriptionCommerce.Modules.Pricing.Domain.PriceLists;
 
 namespace SubscriptionCommerce.Modules.Pricing.Application.PriceLists;
 
-public sealed record PriceListDiscountRecord(
-    int Id,
-    string Name,
-    DiscountType Type,
-    decimal Value,
-    string? Currency,
-    bool IsActive);
-
 public interface IPriceListReader
 {
-    Task<IReadOnlyList<PriceListDiscountRecord>> GetForCustomerAsync(int customerId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<PriceListDiscount>> GetActiveForCustomerAsync(int customerId, CancellationToken cancellationToken);
 }

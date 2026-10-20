@@ -14,7 +14,6 @@ public class CalculateOrderDiscountsQueryHandlerTests
     [Fact]
     public async Task Handle_Should_ApplyProvidersInPriorityOrder_RegardlessOfRegistrationOrder()
     {
-        // Arrange: registered coupon first, price list last.
         var handler = new CalculateOrderDiscountsQueryHandler(
         [
             new StubProvider(300, FixedAmount("Coupon", 10m)),
@@ -22,10 +21,8 @@ public class CalculateOrderDiscountsQueryHandlerTests
             new StubProvider(100, Percentage("Price list", 5m))
         ]);
 
-        // Act
         Result<DiscountBreakdownResponse> result = await handler.Handle(Query, CancellationToken.None);
 
-        // Assert
         result.Value.Discounts.Select(d => d.Name).Should().Equal("Price list", "Promotion", "Coupon");
         result.Value.FinalPrice.Should().Be(280.70m);
     }
@@ -47,7 +44,6 @@ public class CalculateOrderDiscountsQueryHandlerTests
     [Fact]
     public async Task Handle_Should_ApplyANewSource_WithoutChangingTheHandler()
     {
-        // A loyalty source slotted between price list (100) and promotion (200) is just another provider.
         var handler = new CalculateOrderDiscountsQueryHandler(
         [
             new StubProvider(100, Percentage("Price list", 5m)),
@@ -58,7 +54,23 @@ public class CalculateOrderDiscountsQueryHandlerTests
         Result<DiscountBreakdownResponse> result = await handler.Handle(Query, CancellationToken.None);
 
         result.Value.Discounts.Select(d => d.Source).Should().Equal("Test", "Loyalty", "Test");
-        result.Value.Discounts[1].Deducted.Should().Be(6.46m); // 2% of 323.00
+        result.Value.Discounts[1].Deducted.Should().Be(6.46m);
+    }
+
+    [Fact]
+    public async Task Handle_Should_SkipFixedAmountsInAnotherCurrency_AndApplyTheRest()
+    {
+        var handler = new CalculateOrderDiscountsQueryHandler(
+        [
+            new StubProvider(100, Percentage("Price list", 5m)),
+            new StubProvider(300, FixedAmount("Dollar coupon", 10m, "USD"), FixedAmount("Euro coupon", 10m))
+        ]);
+
+        Result<DiscountBreakdownResponse> result = await handler.Handle(Query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Discounts.Select(d => d.Name).Should().Equal("Price list", "Euro coupon");
+        result.Value.FinalPrice.Should().Be(313.00m);
     }
 
     [Fact]

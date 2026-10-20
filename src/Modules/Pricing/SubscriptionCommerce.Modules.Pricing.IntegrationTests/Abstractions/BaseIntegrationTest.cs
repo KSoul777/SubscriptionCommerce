@@ -8,8 +8,6 @@ using SubscriptionCommerce.Modules.Pricing.Infrastructure.Database;
 
 namespace SubscriptionCommerce.Modules.Pricing.IntegrationTests.Abstractions;
 
-// Pricing only reads its tables, so tests add their rows with plain SQL. Each test uses its own
-// customer ids and coupon codes, and never adds an eligible promotion, so tests don't affect each other.
 [Collection(nameof(IntegrationTestCollection))]
 public abstract class BaseIntegrationTest(IntegrationTestWebAppFactory factory) : IDisposable
 {

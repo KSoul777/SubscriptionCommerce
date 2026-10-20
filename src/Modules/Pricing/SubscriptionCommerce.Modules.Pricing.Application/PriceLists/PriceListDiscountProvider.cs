@@ -1,10 +1,10 @@
 using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Pricing.Application.Discounts;
 using SubscriptionCommerce.Modules.Pricing.Domain.Discounts;
+using SubscriptionCommerce.Modules.Pricing.Domain.PriceLists;
 
 namespace SubscriptionCommerce.Modules.Pricing.Application.PriceLists;
 
-// Eligible: the discount is on the customer's price list and is active.
 internal sealed class PriceListDiscountProvider(IPriceListReader reader) : IDiscountProvider
 {
     internal const string Source = "PriceList";
@@ -15,18 +15,19 @@ internal sealed class PriceListDiscountProvider(IPriceListReader reader) : IDisc
         Order order,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<PriceListDiscountRecord> records = await reader.GetForCustomerAsync(order.CustomerId, cancellationToken);
+        IReadOnlyList<PriceListDiscount> priceListDiscounts =
+            await reader.GetActiveForCustomerAsync(order.CustomerId, cancellationToken);
 
         var discounts = new List<Discount>();
 
-        foreach (PriceListDiscountRecord record in records.Where(r => r.IsActive).OrderBy(r => r.Id))
+        foreach (PriceListDiscount item in priceListDiscounts.Where(d => d.IsEligibleFor(order.CustomerId)).OrderBy(d => d.Id))
         {
-            Result<Discount> discount = Discount.Create(record.Name, Source, record.Type, record.Value, record.Currency);
+            Result<Discount> discount = Discount.Create(item.Name, Source, item.Type, item.Value, item.Currency);
 
             if (discount.IsFailure)
             {
                 return Result.Failure<IReadOnlyList<Discount>>(
-                    PricingErrors.InvalidStoredDiscount(Source, record.Id, discount.Error));
+                    PricingErrors.InvalidStoredDiscount(Source, item.Id, discount.Error));
             }
 
             discounts.Add(discount.Value);

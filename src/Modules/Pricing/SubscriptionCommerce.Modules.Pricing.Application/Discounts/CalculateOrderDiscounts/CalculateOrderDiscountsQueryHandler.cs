@@ -25,10 +25,8 @@ internal sealed class CalculateOrderDiscountsQueryHandler(IEnumerable<IDiscountP
 
         var order = new Order(query.CustomerId, price.Value, couponCodes);
 
-        var discounts = new List<Discount>();
+        var sources = new List<PrioritizedDiscounts>();
 
-        // Sequential on purpose: providers share the request's DbContext, which is not thread-safe.
-        // OrderBy is stable, so each provider keeps its own order for the discounts it returns.
         foreach (IDiscountProvider provider in providers.OrderBy(p => p.Priority))
         {
             Result<IReadOnlyList<Discount>> eligible = await provider.GetEligibleDiscountsAsync(order, cancellationToken);
@@ -38,10 +36,12 @@ internal sealed class CalculateOrderDiscountsQueryHandler(IEnumerable<IDiscountP
                 return Result.Failure<DiscountBreakdownResponse>(eligible.Error);
             }
 
-            discounts.AddRange(eligible.Value);
+            sources.Add(new PrioritizedDiscounts(
+                provider.Priority,
+                eligible.Value.Where(d => d.AppliesTo(price.Value.Currency)).ToList()));
         }
 
-        Result<DiscountBreakdown> breakdown = DiscountBreakdown.Apply(price.Value, discounts);
+        Result<DiscountBreakdown> breakdown = DiscountBreakdown.Apply(price.Value, sources);
 
         if (breakdown.IsFailure)
         {

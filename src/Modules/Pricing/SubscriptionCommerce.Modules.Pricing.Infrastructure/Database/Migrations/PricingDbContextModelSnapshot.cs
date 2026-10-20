@@ -23,7 +23,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.Coupons.Coupon", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.Coupons.Coupon", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -81,7 +81,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
                         });
                 });
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.PriceLists.PriceListDiscount", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.PriceLists.PriceListDiscount", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -132,7 +132,7 @@ namespace SubscriptionCommerce.Modules.Pricing.Infrastructure.Database.Migration
                         });
                 });
 
-            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Infrastructure.Promotions.Promotion", b =>
+            modelBuilder.Entity("SubscriptionCommerce.Modules.Pricing.Domain.Promotions.Promotion", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

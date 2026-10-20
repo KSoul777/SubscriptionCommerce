@@ -14,7 +14,15 @@ public sealed record Money
 
     public Currency Currency { get; }
 
-    public static Money Create(decimal amount, Currency currency) => new(amount, currency);
+    public static Result<Money> Create(decimal amount, Currency? currency)
+    {
+        if (currency is null)
+        {
+            return Result.Failure<Money>(MoneyErrors.CurrencyRequired);
+        }
+
+        return Result.Success(new Money(amount, currency));
+    }
 
     public static Result<Money> Create(decimal amount, string? currency)
     {
@@ -31,8 +39,8 @@ public sealed record Money
 
     public static Money operator *(Money left, decimal right) => new(left.Amount * right, left.Currency);
 
-    public Money Round(int decimals, MidpointRounding rounding = MidpointRounding.AwayFromZero) =>
-        new(Math.Round(Amount, decimals, rounding), Currency);
+    public Money Round() =>
+        new(Math.Round(Amount, Currency.DecimalPlaces, MidpointRounding.AwayFromZero), Currency);
 
     private Result<Money> Subtract(Money other)
     {

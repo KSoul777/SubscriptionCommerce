@@ -1,11 +1,16 @@
+using Microsoft.Extensions.Logging;
 using SubscriptionCommerce.Common.Domain;
 using SubscriptionCommerce.Modules.Pricing.Application.Discounts;
 using SubscriptionCommerce.Modules.Pricing.Domain.Discounts;
+using SubscriptionCommerce.Modules.Pricing.Domain.Promotions;
 
 namespace SubscriptionCommerce.Modules.Pricing.Application.Promotions;
 
-// Eligible: the promotion is active and now is inside [StartsAtUtc, EndsAtUtc).
-internal sealed class PromotionDiscountProvider(IPromotionReader reader, TimeProvider timeProvider) : IDiscountProvider
+internal sealed class PromotionDiscountProvider(
+    IPromotionReader reader,
+    TimeProvider timeProvider,
+    ILogger<PromotionDiscountProvider> logger)
+    : IDiscountProvider
 {
     internal const string Source = "Promotion";
 
@@ -15,24 +20,31 @@ internal sealed class PromotionDiscountProvider(IPromotionReader reader, TimePro
         Order order,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<PromotionRecord> records = await reader.GetPromotionsAsync(cancellationToken);
-
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
 
-        IEnumerable<PromotionRecord> eligible = records
-            .Where(r => r.IsActive && r.StartsAtUtc <= utcNow && utcNow < r.EndsAtUtc)
-            .OrderBy(r => r.Id);
+        IReadOnlyList<Promotion> promotions = await reader.GetActiveNotEndedAsync(utcNow, cancellationToken);
 
         var discounts = new List<Discount>();
 
-        foreach (PromotionRecord record in eligible)
+        foreach (Promotion promotion in promotions.Where(p => p.IsActive).OrderBy(p => p.Id))
         {
-            Result<Discount> discount = Discount.Create(record.Name, Source, record.Type, record.Value, record.Currency);
+            if (!promotion.HasValidWindow)
+            {
+                logger.LogWarning("Promotion {PromotionId} ends before it starts, so it can never apply and is skipped", promotion.Id);
+                continue;
+            }
+
+            if (!promotion.IsEligibleAt(utcNow))
+            {
+                continue;
+            }
+
+            Result<Discount> discount = Discount.Create(promotion.Name, Source, promotion.Type, promotion.Value, promotion.Currency);
 
             if (discount.IsFailure)
             {
                 return Result.Failure<IReadOnlyList<Discount>>(
-                    PricingErrors.InvalidStoredDiscount(Source, record.Id, discount.Error));
+                    PricingErrors.InvalidStoredDiscount(Source, promotion.Id, discount.Error));
             }
 
             discounts.Add(discount.Value);

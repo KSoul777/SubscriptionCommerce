@@ -7,11 +7,13 @@ internal static class TestData
 {
     internal static readonly Currency Euro = Currency.Create("EUR").Value;
 
-    internal static Money Eur(decimal amount) => Money.Create(amount, Euro);
+    internal static Money Eur(decimal amount) => Money.Create(amount, Euro).Value;
 
     internal static Discount Percentage(string name, decimal percentage, string source = "Test") =>
         Discount.Create(name, source, DiscountType.Percentage, percentage, currency: null).Value;
 
+    internal static PrioritizedDiscounts[] OneSource(params Discount[] discounts) => [new PrioritizedDiscounts(100, discounts)];
+
     internal static Discount FixedAmount(string name, decimal amount, string currency = "EUR", string source = "Test") =>
-        Discount.Create(name, source, DiscountType.FixedAmount, amount, currency).Value;
+        Discount.Create(name, source, DiscountType.FixedAmount, amount, Currency.Create(currency).Value).Value;
 }

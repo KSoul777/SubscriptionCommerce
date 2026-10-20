@@ -42,7 +42,7 @@ flowchart LR
     PA -. "only through a<br/>public contract" .-> CC
 ```
 
-Requests enter through the API host, which maps each module's endpoints. Inside a module, dependencies point inward: endpoints call application handlers, handlers use the domain, and infrastructure implements the data access defined further in. The only allowed path between modules would be a public contract project such as `Customers.Contracts`. The brief doesn't need the modules to talk, so that project does not exist; flow 4 shows how it would be added.
+Requests enter through the API host, the composition root: it registers each module's Infrastructure and discovers the endpoints in each Presentation assembly, so Infrastructure never references Presentation. Inside a module, dependencies point inward: endpoints call application handlers, handlers use the domain, and infrastructure implements the data access defined further in. The only allowed path between modules would be a public contract project such as `Customers.Contracts`. The brief doesn't need the modules to talk, so that project does not exist; flow 4 shows how it would be added.
 
 ## 2. Calculate discounts (inside Pricing)
 
@@ -63,21 +63,22 @@ sequenceDiagram
     Note over H: Exception, logging and validation decorators run first
 
     H->>PL: GetEligibleDiscountsAsync(order), priority 100
-    PL->>DB: price list discounts of the customer
+    PL->>DB: active price list discounts of the customer
     DB-->>PL: Gold price list 5%
     PL-->>H: [5%]
 
     H->>PR: GetEligibleDiscountsAsync(order), priority 200
-    PR->>DB: promotions
+    PR->>DB: active promotions that have not ended
     DB-->>PR: Autumn promotion 10% (active, inside its window)
     PR-->>H: [10%]
 
     H->>CP: GetEligibleDiscountsAsync(order), priority 300
-    CP->>DB: coupons with the order's codes
+    CP->>DB: active, unexpired coupons with the order's codes
     DB-->>CP: WELCOME10, -10 EUR
     CP-->>H: [-10 EUR]
 
-    H->>D: Apply(340 EUR, discounts in priority order)
+    Note over H: Keep the discounts that apply to EUR<br/>(a fixed amount in another currency is skipped)
+    H->>D: Apply(340 EUR, each source's discounts with its priority)
     D-->>H: -17.00, -32.30, -10.00, final 280.70
 
     alt every provider succeeded
@@ -89,7 +90,7 @@ sequenceDiagram
     end
 ```
 
-Providers run one after another in priority order. Each provider owns its eligibility rules; the readers only fetch rows. The domain `DiscountBreakdown` applies the discounts to the running price without any I/O, so the arithmetic is fully unit-tested.
+Providers run one after another in priority order. The readers fetch only rows that could apply (so a broken inactive or expired ERP row is never read); the eligibility rules themselves belong to the domain entities they return (`PriceListDiscount.IsEligibleFor`, `Promotion.IsEligibleAt`, `Coupon.IsRedeemableAt`), and the provider keeps what is eligible. The handler then drops fixed amounts in another currency than the order's (`Discount.AppliesTo`), once for every source. The domain `DiscountBreakdown` orders the sources by priority itself and applies the discounts to the running price without any I/O, so the arithmetic is fully unit-tested.
 
 ## 3. Set a customer field value (inside Customers)
 
@@ -103,9 +104,9 @@ sequenceDiagram
     participant A as CustomerFieldValue<br/>(aggregate)
     participant DB as SQL Server (customers)
 
-    User->>EP: PUT /customers/{id}/fields/{fieldId}/value (value, rowVersion)
+    User->>EP: PUT /tenants/{tenantId}/customers/{id}/fields/{fieldId}/value (value, rowVersion)
     EP->>H: Handle(command)
-    H->>R: load customer, field with its options, current value
+    H->>R: load customer and field within the tenant, current value
     R->>DB: SELECT
     DB-->>R: rows
 
@@ -113,7 +114,7 @@ sequenceDiagram
         H-->>EP: Result.Failure(Conflict)
         EP-->>User: 409 Problem Details, reload and retry
     else rowVersion matches
-        H->>A: Change(field, newValue, changedBy, utcNow)
+        H->>A: Change(field.ValueRules(), newValue, changedBy, utcNow)
         alt same value as before
             A-->>H: false: nothing changed, no history entry
             H-->>EP: Result.Success(changed = false)

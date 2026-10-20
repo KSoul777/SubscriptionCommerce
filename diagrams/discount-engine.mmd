@@ -44,27 +44,59 @@ classDiagram
         }
         class IPriceListReader {
             <<interface>>
-            +GetForCustomerAsync(customerId, ct)
+            +GetActiveForCustomerAsync(customerId, ct) IReadOnlyList~PriceListDiscount~
         }
         class IPromotionReader {
             <<interface>>
-            +GetPromotionsAsync(ct)
+            +GetActiveNotEndedAsync(utcNow, ct) IReadOnlyList~Promotion~
         }
         class ICouponReader {
             <<interface>>
-            +GetByCodesAsync(codes, ct)
+            +GetActiveUnexpiredByCodesAsync(codes, utcNow, ct) IReadOnlyList~Coupon~
         }
     }
 
     namespace Domain {
+        class PriceListDiscount {
+            +int CustomerId
+            +string Name
+            +DiscountType Type
+            +decimal Value
+            +bool IsActive
+            +IsEligibleFor(customerId) bool
+        }
+        class Promotion {
+            +string Name
+            +DateTime StartsAtUtc
+            +DateTime EndsAtUtc
+            +bool IsActive
+            +IsEligibleAt(utcNow) bool
+        }
+        class Coupon {
+            +string Code
+            +string Name
+            +DateTime? ExpiresAtUtc
+            +bool IsActive
+            +IsRedeemableAt(utcNow) bool
+        }
         class Discount {
+            <<abstract>>
             +string Name
             +string Source
             +DiscountType Type
-            +decimal Value
-            +Currency? Currency
             +string Rule
             +Create(name, source, type, value, currency)$ Result~Discount~
+            +AppliesTo(Currency currency)* bool
+            ~CalculateDeduction(Money runningPrice)* Result~Money~
+        }
+        class PercentageDiscount {
+            +decimal Percentage
+            +AppliesTo(Currency currency) bool
+            ~CalculateDeduction(Money runningPrice) Result~Money~
+        }
+        class FixedAmountDiscount {
+            +Money Amount
+            +AppliesTo(Currency currency) bool
             ~CalculateDeduction(Money runningPrice) Result~Money~
         }
         class DiscountType {
@@ -77,7 +109,12 @@ classDiagram
             +IReadOnlyList~DiscountLine~ Lines
             +Money TotalDiscount
             +Money FinalPrice
-            +Apply(Money price, IEnumerable~Discount~ inPriorityOrder)$ Result~DiscountBreakdown~
+            +Apply(Money price, IEnumerable~PrioritizedDiscounts~ sources)$ Result~DiscountBreakdown~
+        }
+        class PrioritizedDiscounts {
+            <<record>>
+            +int Priority
+            +IReadOnlyList~Discount~ Discounts
         }
         class DiscountLine {
             <<record>>
@@ -119,9 +156,16 @@ classDiagram
     PriceListDiscountProvider --> IPriceListReader
     PromotionDiscountProvider --> IPromotionReader
     CouponDiscountProvider --> ICouponReader
+    IPriceListReader ..> PriceListDiscount : loads
+    IPromotionReader ..> Promotion : loads
+    ICouponReader ..> Coupon : loads
 
     IDiscountProvider ..> Discount : returns
+    Discount <|-- PercentageDiscount
+    Discount <|-- FixedAmountDiscount
     Discount --> DiscountType
+    DiscountBreakdown ..> "*" PrioritizedDiscounts : orders by Priority
+    PrioritizedDiscounts o-- "*" Discount
     DiscountBreakdown *-- "*" DiscountLine
 
     PriceListReader ..|> IPriceListReader

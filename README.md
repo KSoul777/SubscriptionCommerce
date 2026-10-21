@@ -163,6 +163,7 @@ Each endpoint is an `IEndpoint` class that sends a command or query to its handl
 | Validation, Problem | 400 | `CustomFields.Inactive` (`Should_RejectValueChanges_AfterTheFieldIsDeactivated`) |
 | NotFound | 404 | a field of another tenant (`Should_Return404_ForAFieldOfAnotherTenant`) |
 | Conflict | 409 | a stale row version (`Should_Return409ProblemDetails_WhenTheRowVersionIsStale`) |
+| A request body that can't be read (malformed JSON, an unknown enum name) | 400 | `"type": "Dropdwn"` (`Should_Return400ProblemDetails_WhenTheFieldTypeIsNotAName`) |
 | Failure, unhandled exception | 500 | the database is down |
 
 A request the client cancels is not a failure. When the caller's token is cancelled, the exception decorator lets the `OperationCanceledException` through unwrapped and ASP.NET Core ends the request as aborted, instead of logging a server error and answering 500. A cancellation the caller didn't ask for, such as a database timeout, is still logged and wrapped (`Handle_Should_LetTheCancellationThrough_WhenTheCallerCancelled`, `Handle_Should_WrapACancellation_TheCallerDidNotAskFor`, for all three decorator variants).
@@ -485,6 +486,7 @@ Deactivation is a `PUT .../deactivate` rather than `DELETE` because nothing is d
 | `ChangedBy` is the `X-User-Name` header, trimmed; a missing or blank header means `anonymous`; a name longer than 200 characters is rejected with 400 `Users.NameTooLong` before anything is written | `Should_RecordTheCallerFromTheUserHeader`, `Should_Return400_WhenTheUserNameIsLongerThanTheAuditColumns`, `UserName_Should_BeTheTrimmedHeaderValue`, `UserName_Should_BeAnonymous_WhenTheHeaderIsMissingOrBlank`, `UserNameTests` |
 | Entities can't be created or changed into an invalid state: names and labels are required and fit their columns, text fits its 2000-character column, the field type is `Text` or `Dropdown` | `TenantTests`, `CustomerTests`, `Create_Should_Fail_WhenTheNameIsMissing`, `Create_Should_Fail_WhenTheTypeIsUnknown`, `AddOption_Should_Fail_WhenTheLabelIsMissing`, `RenameOption_Should_Fail_WhenTheLabelIsLongerThanItsColumn`, `Change_Should_Fail_WhenTheTextIsLongerThanItsColumn` |
 | The request shape is validated before the handler runs: positive ids, and a row version of 8 bytes of base64 | `SetCustomerFieldValueCommandValidatorTests`, `CreateFieldCommandValidatorTests` |
+| Enums in request bodies are sent by name and deserialized into the enum, ignoring case (`"type": "Dropdown"` or `"dropdown"`); numbers are refused, and Swagger lists the names. An unknown name, a number or any body that can't be read is a 400 Problem Details naming the JSON path (for example `$.type`), never a 500 | `Should_DeserializeTheFieldTypeFromItsName_IgnoringCase`, `Should_Return400ProblemDetails_WhenTheFieldTypeIsNotAName`, `Swagger_Should_DescribeTheFieldTypeByName` |
 
 A field's type can't change: there is no operation that changes it, so existing values always have the shape their field expects.
 
@@ -507,7 +509,6 @@ Field metadata itself has no concurrency token, and that is a conscious trade-of
 
 - **Chosen: attribute-value tables** (definitions, options, values, selected options). Every value is a row with real foreign keys, so a selection can't point at a missing option, uniqueness is a database index, concurrency is per value (two users editing different fields of one customer don't conflict), and "customers whose Industry is Education" is a join.
 - **Considered: one JSON column per customer.** Fewer tables and one read per profile, but no foreign keys to options, one concurrency token for the whole profile, validation only in code, and harder queries. JSON is used where it fits: history snapshots, which are written once and always read whole.
-- **Rejected: adding real columns at runtime (`ALTER TABLE`).** It needs DDL rights for the application, takes schema locks on a shared table, drifts from the migrations, can't express per-tenant fields in one table, and has nowhere to put dropdown options.
 - **Considered: SQL Server temporal tables.** They record history automatically, but selections live in a second table, so one dropdown change would be spread over two history tables, there is no "changed by" without an extra column, and old labels would have to be joined in by period. An explicit history table holds one row per transition, with the user and the labels as they were.
 
 ### Known limitations
@@ -517,26 +518,3 @@ Field metadata itself has no concurrency token, and that is a conscious trade-of
 ## Module communication
 
 The modules don't talk today. [diagrams/module-communication.md](diagrams/module-communication.md) shows the module overview, the discount calculation, setting a field value, and how this would grow if Pricing ever needed a customer field (for example a promotion only for customers whose `Industry` is `Education`). There are two options. Inside one process, the better one is a synchronous call through a public `Customers.Contracts` project, which is always current and has one moving part. If Pricing were deployed on its own, Customers would publish an integration event through an outbox and Pricing would keep a local copy, which is eventually consistent and has more moving parts.
-
-## Tests
-
-| Project | What it covers |
-|---|---|
-| `SubscriptionCommerce.Common.UnitTests` | The `X-User-Name` header stub, how the exception decorator treats cancellation, sequential validation, and the supported currencies |
-| `SubscriptionCommerce.Modules.Pricing.UnitTests` | Domain rules (discounts, breakdown, eligibility of price list discounts, promotions and coupons), the handler with stub providers, the providers with NSubstitute readers, provider registration and the startup priority check, the request validator |
-| `SubscriptionCommerce.Modules.Pricing.IntegrationTests` | The real API against SQL Server in Testcontainers, with the generated migration and its seed: the brief's example end to end, each EF Core reader on real rows, Problem Details (needs Docker) |
-| `SubscriptionCommerce.Modules.Customers.UnitTests` | The entities and aggregates (invariants, change detection, single vs multi-select, required, soft delete, rename), the `UserName` value object and the request validators |
-| `SubscriptionCommerce.Modules.Customers.IntegrationTests` | The real API against SQL Server in Testcontainers, with the generated migrations: history, concurrency and row versions, Problem Details, tenant isolation (including the database's own foreign keys), soft delete, rename, the user header (needs Docker) |
-| `SubscriptionCommerce.ArchitectureTests` | Module boundaries, layer rules, naming and visibility conventions |
-
-The build treats warnings as errors with `AnalysisMode All` and SonarAnalyzer. Package versions are managed centrally, and transitive packages with known vulnerabilities are pinned to patched versions.
-
-## Next steps
-
-- **Discount rules beyond the brief:** stacking rules (for example a coupon that can't combine with a promotion), exclusivity, and a cap on the total discount. These would be one policy step between the providers and `DiscountBreakdown.Apply`.
-- **Narrow the promotion read further** once a measurement shows it is a bottleneck. Today the reader loads every active promotion that hasn't ended, including upcoming ones, and the domain decides which are running now, which keeps the rules unit-testable.
-- **Real authentication and per-tenant authorization.** The tenant would come from the token instead of the route.
-- **Versions on field metadata** once several administrators edit the same fields: a row version on the field, moved on with every option change, and sent by the client with each metadata request, as values already do.
-- **More field operations and types:** reactivate, rename a field, change sort order, and new types such as a date. For a date field, add `FieldType.Date`, validate an ISO date in `CustomerFieldValue`, and store it normalized in `TextValue`, or in a typed `DateValue` column if range queries are needed. Snapshots and history stay as they are.
-- **Cross-module calls** through `Customers.Contracts` when a rule first needs them, and the outbox when a module is deployed separately.
-- **Deployment:** health checks for both `DbContext`s, migrations as a deployment step instead of on start, and HTTPS in the container.
